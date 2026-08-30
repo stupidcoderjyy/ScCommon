@@ -45,9 +45,7 @@ struct sc::common::json::JsonTraits<nlohmann::json> {
 
     static double GetDouble(const Json& node) { return node.get<double>(); }
 
-    static std::string GetString(const Json& node) {
-        return node.get<std::string>();
-    }
+    static std::string GetString(const Json& node) { return node.get<std::string>(); }
 
     static bool GetBool(const Json& node) { return node.get<bool>(); }
 };

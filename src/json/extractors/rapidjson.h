@@ -39,6 +39,6 @@ struct Extractor<rapidjson::Value, std::vector<const rapidjson::Value*>> {
     }
 };
 
-}
+}  // namespace sc::common::json
 
 #endif  // SCCOMMON_JSON_EXTRACTORS_RAPIDJSON_H

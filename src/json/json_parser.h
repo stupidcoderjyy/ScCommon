@@ -19,7 +19,7 @@
 // 不同版本的 nlohmann 头文件保护宏不同（NLOHMANN_JSON_HPP / INCLUDE_NLOHMANN_JSON_HPP_），
 // 这里同时检测，并用 __has_include 兜底。
 #if defined(NLOHMANN_JSON_HPP) || defined(INCLUDE_NLOHMANN_JSON_HPP_) || \
-    __has_include(<nlohmann/json.hpp>)
+        __has_include(<nlohmann/json.hpp>)
 #include "traits/nlohmann.h"
 #endif
 #if defined(RAPIDJSON_DOCUMENT_H_) || __has_include(<rapidjson/document.h>)
@@ -93,7 +93,8 @@ private:
         std::size_t pos = 0;
         while (true) {
             const std::size_t dot = path.find('.', pos);
-            if (const std::size_t end = dot == std::string_view::npos ? path.size() : dot; !ApplySegment(current, path.substr(pos, end - pos))) {
+            if (const std::size_t end = dot == std::string_view::npos ? path.size() : dot;
+                    !ApplySegment(current, path.substr(pos, end - pos))) {
                 return nullptr;
             }
             if (dot == std::string_view::npos) {
@@ -134,7 +135,8 @@ private:
                 }
                 index = index * 10 + digit;
             }
-            if (!JsonTraits<Json>::IsArray(*current) || index >= JsonTraits<Json>::GetArraySize(*current)) {
+            if (!JsonTraits<Json>::IsArray(*current) ||
+                    index >= JsonTraits<Json>::GetArraySize(*current)) {
                 return false;
             }
             current = &JsonTraits<Json>::GetArrayElement(*current, index);

@@ -12,7 +12,7 @@ namespace sc::common::json {
 
 // JsonTraits 是对不同 JSON 库的最小静态访问接口（命名遵循 CamelCase）。
 // 适配一个新 JSON 库时，只需为 JsonTraits<JsonType> 提供显式特化。
-template<typename Json>
+template <typename Json>
 struct JsonTraits {
     static bool IsObject(const Json&);
     static bool IsArray(const Json&);

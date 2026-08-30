@@ -10,7 +10,16 @@ function(add_format_target TARGET)
     endif()
 
     if(CLANG_FORMAT)
-        file(GLOB_RECURSE ALL_SOURCE_FILES ${ARGN})
+        # 相对模式统一按 PROJECT_SOURCE_DIR 解析，避免在子目录 CMakeLists 中调用时匹配不到文件
+        set(_format_patterns "")
+        foreach(_pattern IN LISTS ARGN)
+            if(IS_ABSOLUTE "${_pattern}")
+                list(APPEND _format_patterns "${_pattern}")
+            else()
+                list(APPEND _format_patterns "${PROJECT_SOURCE_DIR}/${_pattern}")
+            endif()
+        endforeach()
+        file(GLOB_RECURSE ALL_SOURCE_FILES ${_format_patterns})
         add_custom_target(format_${TARGET}
                 COMMAND ${CLANG_FORMAT} -i -style=file ${ALL_SOURCE_FILES}
                 COMMENT "Running clang-format on all source files."
