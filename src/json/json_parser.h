@@ -55,13 +55,18 @@ class JsonParser {
 public:
     explicit JsonParser(const Json& root) : root_(root) {}
 
-    // 解析路径指向的节点：Required 缺失/类型不匹配时抛出异常，
-    // Optional 则静默跳过；成功时以提取结果调用 callback，支持链式调用。
-    template <template <typename> class ExtractorT, typename ExistencePolicy, typename Func>
+    // 解析路径指向的节点：Required 缺失/类型不匹配时抛出异常；
+    // Optional（默认策略）缺失/类型不匹配时仍调用 callback，传入默认构造的 Value{}；
+    // 成功时以实际提取结果调用 callback，支持链式调用。
+    template <template <typename> class ExtractorT, typename ExistencePolicy = Optional,
+              typename Func>
     JsonParser& Parse(std::string_view path, Func&& callback) {
+        using Value = ExtractorT<Json>::value_type;
+        Value value{};
         const Json* node = Resolve(path);
-        if (node == nullptr) {
+        if (!node) {
             if constexpr (std::is_same_v<ExistencePolicy, Optional>) {
+                std::forward<Func>(callback)(std::move(value));
                 return *this;
             } else {
                 ErrorHandler::OnMissing(path);
@@ -69,10 +74,9 @@ public:
             }
         }
 
-        using Value = ExtractorT<Json>::value_type;
-        Value value{};
         if (!ExtractorT<Json>::Extract(*node, value)) {
             if constexpr (std::is_same_v<ExistencePolicy, Optional>) {
+                std::forward<Func>(callback)(std::move(value));
                 return *this;
             } else {
                 ErrorHandler::OnTypeMismatch(path);
@@ -81,6 +85,26 @@ public:
         }
 
         std::forward<Func>(callback)(std::move(value));
+        return *this;
+    }
+
+    // 带默认值的解析：仅 ExistencePolicy == Optional（默认策略）时可用。
+    // 路径缺失或类型不匹配时，以 default_value 调用 callback；成功时使用实际提取值。
+    template <template <typename> class ExtractorT, typename ExistencePolicy = Optional,
+              typename Func, typename T>
+    JsonParser& Parse(std::string_view path, Func&& callback, const T& default_value) {
+        static_assert(std::is_same_v<ExistencePolicy, Optional>,
+                      "JsonParser: default value is only allowed with the Optional policy");
+        using Value = ExtractorT<Json>::value_type;
+        static_assert(std::is_same_v<T, Value>,
+                      "JsonParser: default value type must match ExtractorT<Json>::value_type");
+
+        const Json* node = Resolve(path);
+        if (Value value{}; node && ExtractorT<Json>::Extract(*node, value)) {
+            std::forward<Func>(callback)(std::move(value));
+        } else {
+            std::forward<Func>(callback)(default_value);
+        }
         return *this;
     }
 

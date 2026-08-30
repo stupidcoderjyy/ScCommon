@@ -143,28 +143,77 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseChainedCalls) {
     EXPECT_TRUE(boolValue);
 }
 
-TEST(SC_JSON_TEST_SUITE_NAME, OptionalMissingSkips) {
+TEST(SC_JSON_TEST_SUITE_NAME, OptionalMissingCallsCallbackWithDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    bool called = false;
-    parser.Parse<JsonInt, Optional>("no.such.path", [&](int) { called = true; });
-    EXPECT_FALSE(called);
+    int value = -1;
+    parser.Parse<JsonInt, Optional>("no.such.path", [&](int v) { value = v; });
+    EXPECT_EQ(0, value);
 }
 
-TEST(SC_JSON_TEST_SUITE_NAME, OptionalTypeMismatchSkips) {
+TEST(SC_JSON_TEST_SUITE_NAME, OptionalTypeMismatchCallsCallbackWithDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    bool called = false;
-    parser.Parse<JsonInt, Optional>("s", [&](int) { called = true; });
-    EXPECT_FALSE(called);
+    int value = -1;
+    parser.Parse<JsonInt, Optional>("s", [&](int v) { value = v; });
+    EXPECT_EQ(0, value);
 }
 
-TEST(SC_JSON_TEST_SUITE_NAME, OptionalArrayIndexOutOfRangeSkips) {
+TEST(SC_JSON_TEST_SUITE_NAME, OptionalArrayIndexOutOfRangeCallsCallbackWithDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    bool called = false;
-    parser.Parse<JsonInt, Optional>("list[9]", [&](int) { called = true; });
-    EXPECT_FALSE(called);
+    int value = -1;
+    parser.Parse<JsonInt, Optional>("list[9]", [&](int v) { value = v; });
+    EXPECT_EQ(0, value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, OptionalMissingUsesDefault) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    int value = 0;
+    parser.Parse<JsonInt>("no.such.path", [&](int v) { value = v; }, 42);
+    EXPECT_EQ(42, value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, OptionalTypeMismatchUsesDefault) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    int value = 0;
+    parser.Parse<JsonInt>("s", [&](int v) { value = v; }, 7);
+    EXPECT_EQ(7, value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, OptionalStringUsesDefault) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    std::string value;
+    parser.Parse<JsonString, Optional>("missing", [&](const std::string& v) { value = v; },
+                                       std::string("unknown"));
+    EXPECT_EQ(std::string("unknown"), value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, DefaultPolicyIsOptional) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    int value = -1;
+    parser.Parse<JsonInt>("no.such.path", [&](int v) { value = v; });
+    EXPECT_EQ(0, value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, DefaultPolicyWithDefaultValue) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    int value = 0;
+    parser.Parse<JsonInt>("no.such.path", [&](int v) { value = v; }, 42);
+    EXPECT_EQ(42, value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, DefaultValuePresentUsesActual) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    int value = 0;
+    parser.Parse<JsonInt>("a.b", [&](int v) { value = v; }, 0);
+    EXPECT_EQ(42, value);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, RequiredMissingThrows) {
