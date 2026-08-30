@@ -1,0 +1,17 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(nlohmann_json)
+find_dependency(JsonCpp)
+find_dependency(RapidJSON)
+
+include("${CMAKE_CURRENT_LIST_DIR}/sccommonTargets.cmake")
+
+# RapidJSON 没有 CMake 导入目标，仅提供头文件路径；
+# 安装后由这里重新补充到接口目标的 include 目录。
+if(TARGET sccommon::json AND RAPIDJSON_INCLUDE_DIRS)
+    set_property(TARGET sccommon::json APPEND PROPERTY
+            INTERFACE_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIRS}")
+endif()
+
+check_required_components(sccommon)

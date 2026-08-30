@@ -1,0 +1,1 @@
+codex --cd $PWD
