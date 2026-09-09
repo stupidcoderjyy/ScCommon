@@ -8,6 +8,7 @@
 #include <json/json.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -15,44 +16,33 @@
 
 // JsonCpp 适配：JsonType = Json::Value。
 template <>
-struct sc::common::json::JsonTraits<Json::Value> {
+struct sc::json::JsonTraits<Json::Value> {
     using Json = Json::Value;
 
-    static bool IsObject(const Json& node) { return node.isObject(); }
+    static bool IsObject(const Json& json) { return json.isObject(); }
+    static bool IsArray(const Json& json) { return json.isArray(); }
+    static bool IsInt(const Json& json) { return json.isInt(); }
+    static bool IsUint(const Json& json) { return json.isUInt(); }
+    static bool IsInt64(const Json& json) { return json.isInt64(); }
+    static bool IsUint64(const Json& json) { return json.isUInt64(); }
+    static bool IsDouble(const Json& json) { return json.isDouble(); }
+    static bool IsString(const Json& json) { return json.isString(); }
+    static bool IsBool(const Json& json) { return json.isBool(); }
 
-    static bool IsArray(const Json& node) { return node.isArray(); }
-
-    static bool IsNumberInteger(const Json& node) {
-        return node.isInt() || node.isUInt() || node.isInt64() || node.isUInt64();
+    static bool HasKey(const Json& json, std::string_view key) { return json.isMember(std::string(key)); }
+    static const Json& GetChild(const Json& json, std::string_view key) {
+        return json[std::string(key)];
     }
+    static std::size_t GetArraySize(const Json& json) { return json.size(); }
+    static const Json& GetArrayElement(const Json& json, std::size_t index) { return json[static_cast<Json::ArrayIndex>(index)]; }
 
-    static bool IsDouble(const Json& node) { return node.isDouble(); }
-
-    static bool IsString(const Json& node) { return node.isString(); }
-
-    static bool IsBool(const Json& node) { return node.isBool(); }
-
-    static bool HasKey(const Json& node, std::string_view key) {
-        return node.isMember(std::string(key));
-    }
-
-    static const Json& GetChild(const Json& node, std::string_view key) {
-        return node[std::string(key)];
-    }
-
-    static std::size_t GetArraySize(const Json& node) { return node.size(); }
-
-    static const Json& GetArrayElement(const Json& node, std::size_t index) {
-        return node[static_cast<Json::ArrayIndex>(index)];
-    }
-
-    static int GetInt(const Json& node) { return node.asInt(); }
-
-    static double GetDouble(const Json& node) { return node.asDouble(); }
-
-    static std::string GetString(const Json& node) { return node.asString(); }
-
-    static bool GetBool(const Json& node) { return node.asBool(); }
-};  // namespace sc::common::json
+    static int GetInt(const Json& json) { return json.asInt(); }
+    static unsigned int GetUint(const Json& json) { return json.asUInt(); }
+    static std::int64_t GetInt64(const Json& json) { return json.asInt64(); }
+    static std::uint64_t GetUint64(const Json& json) { return json.asUInt64(); }
+    static double GetDouble(const Json& json) { return json.asDouble(); }
+    static std::string GetString(const Json& json) { return json.asString(); }
+    static bool GetBool(const Json& json) { return json.asBool(); }
+};  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_TRAITS_JSONCPP_H

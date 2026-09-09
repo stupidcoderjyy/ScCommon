@@ -1,59 +1,104 @@
 //
-// Created by PC on 2026/8/30.
+// Created by jiangyuyun3 on 2026/9/8.
 //
 
-#ifndef SCCOMMON_JSON_TRAITS_RAPIDJSON_H
-#define SCCOMMON_JSON_TRAITS_RAPIDJSON_H
+#ifndef SCCOMMON_RAPIDJSON_N_H
+#define SCCOMMON_RAPIDJSON_N_H
+
+#include "../json_traits.h"
 
 #include <rapidjson/document.h>
 
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <string_view>
 
-#include "../json_traits.h"
-
-// RapidJSON 适配：JsonType = rapidjson::Value。
-// rapidjson::Document 是 Value 的子类，根节点可直接绑定到 JsonParser<rapidjson::Value>。
 template <>
-struct sc::common::json::JsonTraits<rapidjson::Value> {
+struct sc::json::JsonTraits<rapidjson::Value> {
     using Json = rapidjson::Value;
 
-    static bool IsObject(const Json& node) { return node.IsObject(); }
-
-    static bool IsArray(const Json& node) { return node.IsArray(); }
-
-    static bool IsNumberInteger(const Json& node) {
-        return node.IsInt() || node.IsUint() || node.IsInt64() || node.IsUint64();
+    static bool IsObject(const Json& json) { return json.IsObject(); }
+    static bool IsArray(const Json& json) { return json.IsArray(); }
+    // Is<整型> 语义：JSON 整数值能无损转换到目标类型即为真（不要求存储标志一致）。
+    static bool IsInt(const Json& json) {
+        return json.IsInt() ||
+               (json.IsUint() &&
+                json.GetUint() <= static_cast<unsigned int>(std::numeric_limits<int>::max())) ||
+               (json.IsInt64() && json.GetInt64() >= std::numeric_limits<int>::min() &&
+                json.GetInt64() <= std::numeric_limits<int>::max());
     }
-
-    static bool IsDouble(const Json& node) { return node.IsDouble(); }
-
-    static bool IsString(const Json& node) { return node.IsString(); }
-
-    static bool IsBool(const Json& node) { return node.IsBool(); }
-
-    static bool HasKey(const Json& node, std::string_view key) {
-        return node.HasMember(std::string(key).c_str());
+    static bool IsUint(const Json& json) {
+        return json.IsUint() ||
+               (json.IsInt() && json.GetInt() >= 0) ||
+               (json.IsInt64() && json.GetInt64() >= 0 &&
+                json.GetInt64() <=
+                        static_cast<std::int64_t>(std::numeric_limits<unsigned int>::max()));
     }
-
-    static const Json& GetChild(const Json& node, std::string_view key) {
-        return node[std::string(key).c_str()];
+    static bool IsInt64(const Json& json) {
+        return json.IsInt() || json.IsUint() || json.IsInt64() ||
+               (json.IsUint64() &&
+                json.GetUint64() <=
+                        static_cast<std::uint64_t>((std::numeric_limits<std::int64_t>::max)()));
     }
-
-    static std::size_t GetArraySize(const Json& node) { return node.Size(); }
-
-    static const Json& GetArrayElement(const Json& node, std::size_t index) {
-        return node[static_cast<rapidjson::SizeType>(index)];
+    static bool IsUint64(const Json& json) {
+        return json.IsUint() || json.IsUint64() ||
+               (json.IsInt() && json.GetInt() >= 0) ||
+               (json.IsInt64() && json.GetInt64() >= 0);
     }
+    static bool IsDouble(const Json& json) { return json.IsDouble(); }
+    static bool IsString(const Json& json) { return json.IsString(); }
+    static bool IsBool(const Json& json) { return json.IsBool(); }
 
-    static int GetInt(const Json& node) { return node.GetInt(); }
+    static bool HasKey(const Json& json, std::string_view key) { return json.HasMember(std::string(key).c_str()); }
+    static const Json& GetChild(const Json& json, std::string_view key) {
+        return json[std::string(key).c_str()];
+    }
+    static std::size_t GetArraySize(const Json& json) { return json.Size(); }
+    static const Json& GetArrayElement(const Json& json, std::size_t index) { return json[static_cast<rapidjson::SizeType>(index)]; }
 
-    static double GetDouble(const Json& node) { return node.GetDouble(); }
+    static int GetInt(const Json& json) {
+        if (json.IsInt64()) {
+            return static_cast<int>(json.GetInt64());
+        }
+        if (json.IsUint()) {
+            return static_cast<int>(json.GetUint());
+        }
+        return json.GetInt();
+    }
+    static unsigned int GetUint(const Json& json) {
+        if (json.IsUint()) {
+            return json.GetUint();
+        }
+        if (json.IsInt64()) {
+            return static_cast<unsigned int>(json.GetInt64());
+        }
+        return static_cast<unsigned int>(json.GetInt());
+    }
+    static std::int64_t GetInt64(const Json& json) {
+        if (json.IsInt64()) {
+            return json.GetInt64();
+        }
+        if (json.IsUint()) {
+            return json.GetUint();
+        }
+        return json.GetInt();
+    }
+    static std::uint64_t GetUint64(const Json& json) {
+        if (json.IsUint64()) {
+            return json.GetUint64();
+        }
+        if (json.IsUint()) {
+            return json.GetUint();
+        }
+        if (json.IsInt64()) {
+            return static_cast<std::uint64_t>(json.GetInt64());
+        }
+        return static_cast<std::uint64_t>(json.GetInt());
+    }
+    static double GetDouble(const Json& json) { return json.GetDouble(); }
+    static std::string GetString(const Json& json) { return json.GetString(); }
+    static bool GetBool(const Json& json) { return json.GetBool(); }
+};
 
-    static std::string GetString(const Json& node) { return {node.GetString()}; }
-
-    static bool GetBool(const Json& node) { return node.GetBool(); }
-};  // namespace sc::common::json
-
-#endif  // SCCOMMON_JSON_TRAITS_RAPIDJSON_H
+#endif  //SCCOMMON_RAPIDJSON_N_H

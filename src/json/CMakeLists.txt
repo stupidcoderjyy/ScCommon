@@ -40,7 +40,7 @@ endif()
 
 set(SCCOMMON_JSON_VERSION 1.0.0)
 
-# 头文件安装到 include/json/（含 traits/ 与 extractors/ 子目录）
+# 头文件安装到 include/json/（含 traits/ 子目录）
 install(FILES
         json_parser.h
         json_parser.hpp
@@ -48,7 +48,7 @@ install(FILES
         json_extractor.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
 )
-install(DIRECTORY traits extractors
+install(DIRECTORY traits
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
         FILES_MATCHING PATTERN "*.h"
 )

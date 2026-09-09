@@ -1,123 +1,101 @@
 //
-// Created by PC on 2026/8/30.
+// Created by jiangyuyun3 on 2026/9/7.
 //
 
-#ifndef SCCOMMON_JSON_EXTRACTOR_H
-#define SCCOMMON_JSON_EXTRACTOR_H
-
-#include <cstddef>
-#include <string>
-#include <vector>
+#ifndef SCCOMMON_JSON_EXTRACTOR_N_H
+#define SCCOMMON_JSON_EXTRACTOR_N_H
 
 #include "json_traits.h"
 
-namespace sc::common::json {
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
+#include <vector>
 
-// 提取器接口。自定义提取器需提供：
-//   using value_type = T;
-//   static bool Extract(const JsonType&, T& out);
+namespace sc::json {
+
 template <typename Json, typename T>
-struct Extractor;
-
-template <typename Json>
-struct Extractor<Json, int> {
-    using value_type = int;
-
-    static bool Extract(const Json& node, int& out) {
-        if (!JsonTraits<Json>::IsNumberInteger(node)) {
-            return false;
-        }
-        out = JsonTraits<Json>::GetInt(node);
-        return true;
-    }
+struct Extractor {
+    using ValueType = T;
+    static bool Extract(const Json& json, T& val);
 };
 
-template <typename Json>
-struct Extractor<Json, double> {
-    using value_type = double;
-
-    static bool Extract(const Json& node, double& out) {
-        if (!JsonTraits<Json>::IsDouble(node)) {
-            return false;
-        }
-        out = JsonTraits<Json>::GetDouble(node);
-        return true;
-    }
-};
+template <typename Json, typename T>
+using JsonElement = Extractor<Json, T>;
 
 template <typename Json>
-struct Extractor<Json, std::string> {
-    using value_type = std::string;
-
-    static bool Extract(const Json& node, std::string& out) {
-        if (!JsonTraits<Json>::IsString(node)) {
-            return false;
-        }
-        out = JsonTraits<Json>::GetString(node);
-        return true;
-    }
-};
+using JsonInt = JsonElement<Json, int>;
 
 template <typename Json>
-struct Extractor<Json, bool> {
-    using value_type = bool;
+using JsonInt64 = JsonElement<Json, std::int64_t>;
 
-    static bool Extract(const Json& node, bool& out) {
-        if (!JsonTraits<Json>::IsBool(node)) {
-            return false;
-        }
-        out = JsonTraits<Json>::GetBool(node);
-        return true;
-    }
-};
-
-// JsonArray 递归存储 JSON 节点：value_type = std::vector<JsonType>。
 template <typename Json>
-struct Extractor<Json, std::vector<Json>> {
-    using value_type = std::vector<Json>;
+using JsonDouble = JsonElement<Json, double>;
 
-    static bool Extract(const Json& node, std::vector<Json>& out) {
-        if (!JsonTraits<Json>::IsArray(node)) {
+template <typename Json>
+using JsonString = JsonElement<Json, std::string>;
+
+template <typename Json>
+using JsonBool = JsonElement<Json, bool>;
+
+// 数组元素为零拷贝指针视图。
+template <typename Json>
+using JsonArray = JsonElement<Json, std::vector<const Json*>>;
+
+// 对象节点为零拷贝指针视图。
+template <typename Json>
+using JsonObject = JsonElement<Json, const Json*>;
+
+template <typename Json, typename T>
+bool Extractor<Json, T>::Extract(const Json& json, T& val) {
+    if constexpr (std::is_same_v<T, int>) {
+        if (!JsonTraits<Json>::IsInt(json))
             return false;
-        }
-        const std::size_t size = JsonTraits<Json>::GetArraySize(node);
-        out.reserve(size);
+        val = JsonTraits<Json>::GetInt(json);
+    } else if constexpr (std::is_same_v<T, unsigned int>) {
+        if (!JsonTraits<Json>::IsUint(json))
+            return false;
+        val = JsonTraits<Json>::GetUint(json);
+    } else if constexpr (std::is_same_v<T, std::int64_t>) {
+        if (!JsonTraits<Json>::IsInt64(json))
+            return false;
+        val = JsonTraits<Json>::GetInt64(json);
+    } else if constexpr (std::is_same_v<T, std::uint64_t>) {
+        if (!JsonTraits<Json>::IsUint64(json))
+            return false;
+        val = JsonTraits<Json>::GetUint64(json);
+    } else if constexpr (std::is_same_v<T, double>) {
+        if (!JsonTraits<Json>::IsDouble(json))
+            return false;
+        val = JsonTraits<Json>::GetDouble(json);
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        if (!JsonTraits<Json>::IsString(json))
+            return false;
+        val = JsonTraits<Json>::GetString(json);
+    } else if constexpr (std::is_same_v<T, bool>) {
+        if (!JsonTraits<Json>::IsBool(json))
+            return false;
+        val = JsonTraits<Json>::GetBool(json);
+    } else if constexpr (std::is_same_v<T, const Json*>) {
+        if (!JsonTraits<Json>::IsObject(json))
+            return false;
+        val = &json;
+    } else if constexpr (std::is_same_v<T, std::vector<const Json*>>) {
+        if (!JsonTraits<Json>::IsArray(json))
+            return false;
+        const std::size_t size = JsonTraits<Json>::GetArraySize(json);
+        val.reserve(size);
         for (std::size_t i = 0; i < size; ++i) {
-            out.push_back(JsonTraits<Json>::GetArrayElement(node, i));
+            val.push_back(&JsonTraits<Json>::GetArrayElement(json, i));
         }
-        return true;
+    } else {
+        throw std::runtime_error("Unsupported json type");
     }
-};
+    return true;
+}
 
-// 预定义提取器。
-template <typename Json>
-using JsonInt = Extractor<Json, int>;
+}  // namespace sc::json
 
-template <typename Json>
-using JsonDouble = Extractor<Json, double>;
-
-template <typename Json>
-using JsonString = Extractor<Json, std::string>;
-
-template <typename Json>
-using JsonBool = Extractor<Json, bool>;
-
-// 数组容器定制点：默认直接存放可拷贝的 JSON 节点（std::vector<Json>）。
-// 对不可安全拷贝的库（如 rapidjson），可特化此模板改用零拷贝视图
-//（如 std::vector<const Json*>），使 JsonArray 提取器随库自适应。
-template <typename Json>
-struct JsonArrayContainer {
-    using type = std::vector<Json>;
-};
-
-template <typename Json>
-using JsonArray = Extractor<Json, typename JsonArrayContainer<Json>::type>;
-
-// JsonObject：自定义对象映射。先特化 Extractor<JsonType, MyObject>，
-// 再通过 Extractor<JsonType, MyObject>（或其别名）作为提取器使用。
-template <typename Json, typename T>
-using JsonObject = Extractor<Json, T>;
-
-}  // namespace sc::common::json
-
-#endif  // SCCOMMON_JSON_EXTRACTOR_H
+#endif  // SCCOMMON_JSON_EXTRACTOR_N_H

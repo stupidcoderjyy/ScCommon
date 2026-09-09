@@ -14,7 +14,7 @@ Json::Value MakeJson() {
     Json::CharReaderBuilder builder;
     Json::Value value;
     const std::string text =
-            R"({"a":{"b":42},"neg":-7,"list":[1,2,3],"s":"hello","d":3.14,"flag":true,"obj_list":[{"id":1},{"id":2}],"point":{"x":10,"y":20}})";
+            R"({"a":{"b":42},"neg":-7,"list":[1,2,3],"s":"hello","d":3.14,"flag":true,"obj_list":[{"id":1},{"id":2}],"point":{"x":10,"y":20},"big":9007199254740993,"big_neg":-9007199254740993})";
     std::istringstream stream(text);
     std::string errors;
     if (!Json::parseFromStream(builder, stream, &value, &errors)) {
@@ -31,7 +31,7 @@ Json::Value MakeLeaf() { return {42}; }
 #define SC_JSON_TYPE Json::Value
 #define SC_JSON_MAKE_JSON() MakeJson()
 #define SC_JSON_MAKE_JSON_LEAF() MakeLeaf()
-#define SC_JSON_ARRAY_ELEMENT(arr, index) (arr)[index]
+#define SC_JSON_ARRAY_ELEMENT(arr, index) *(arr)[index]
 
 #include "json_parser_test_suite.inc"
 
