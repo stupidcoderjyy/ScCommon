@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -56,6 +57,15 @@ struct sc::json::JsonTraits<rapidjson::Value> {
     }
     static std::size_t GetArraySize(const Json& json) { return json.Size(); }
     static const Json& GetArrayElement(const Json& json, std::size_t index) { return json[static_cast<rapidjson::SizeType>(index)]; }
+    template <typename Func>
+    static void ForEachMember(const Json& json, Func&& func) {
+        for (auto it = json.MemberBegin(); it != json.MemberEnd(); ++it) {
+            if (!func(std::string_view(it->name.GetString(), it->name.GetStringLength()),
+                      it->value)) {
+                break;
+            }
+        }
+    }
 
     static int GetInt(const Json& json) {
         if (json.IsInt64()) {
@@ -99,6 +109,25 @@ struct sc::json::JsonTraits<rapidjson::Value> {
     static double GetDouble(const Json& json) { return json.GetDouble(); }
     static std::string GetString(const Json& json) { return json.GetString(); }
     static bool GetBool(const Json& json) { return json.GetBool(); }
+};
+
+template <typename ErrorHandler>
+struct sc::json::JsonBuilder<rapidjson::Value, ErrorHandler> {
+    // Document 是 Value 的子类，且自带分配器；分配器随 JsonBuilder 存活，
+    // 因此返回的 Value 引用在 JsonParser 生命周期内始终有效。
+    rapidjson::Document doc_{};
+
+    const rapidjson::Value& Parse(std::string_view json, ErrorHandler& error_handler) {
+        const std::string text(json);  // rapidjson 需要 NUL 结尾的输入
+        doc_.Parse(text.c_str());
+        if (doc_.HasParseError()) {
+            std::runtime_error e("rapidjson parse error at offset " +
+                                 std::to_string(doc_.GetErrorOffset()));
+            error_handler.OnJsonParseError(json, e);
+            throw std::move(e);
+        }
+        return doc_;
+    }
 };
 
 #endif  //SCCOMMON_RAPIDJSON_N_H

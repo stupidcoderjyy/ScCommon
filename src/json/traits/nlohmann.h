@@ -6,6 +6,7 @@
 #define SCCOMMON_NLOHMANN_N_H
 #include "../json_traits.h"
 
+#include <exception>
 #include <limits>
 #include <nlohmann/json.hpp>
 
@@ -62,6 +63,14 @@ struct sc::json::JsonTraits<nlohmann::json> {
     }
     static std::size_t GetArraySize(const Json& json) { return json.size(); }
     static const Json& GetArrayElement(const Json& json, std::size_t index) { return json.at(index); }
+    template <typename Func>
+    static void ForEachMember(const Json& json, Func&& func) {
+        for (auto it = json.begin(); it != json.end(); ++it) {
+            if (!func(std::string_view(it.key()), it.value())) {
+                break;
+            }
+        }
+    }
 
     static int GetInt(const Json& json) { return json.get<int>(); }
     static unsigned int GetUint(const Json& json) { return json.get<unsigned int>(); }
@@ -70,6 +79,21 @@ struct sc::json::JsonTraits<nlohmann::json> {
     static double GetDouble(const Json& json) { return json.get<double>(); }
     static std::string GetString(const Json& json) { return json.get<std::string>(); }
     static bool GetBool(const Json& json) { return json.get<bool>(); }
+};
+
+template <typename ErrorHandler>
+struct sc::json::JsonBuilder<nlohmann::json, ErrorHandler> {
+    nlohmann::json doc_{};
+
+    const nlohmann::json& Parse(std::string_view json, ErrorHandler& error_handler) {
+        try {
+            doc_ = nlohmann::json::parse(json.data(), json.data() + json.size());
+        } catch (std::exception& e) {
+            error_handler.OnJsonParseError(json, e);
+            throw;
+        }
+        return doc_;
+    }
 };
 
 #endif  //SCCOMMON_NLOHMANN_N_H

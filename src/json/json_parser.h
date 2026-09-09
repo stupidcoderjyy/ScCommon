@@ -36,6 +36,9 @@ struct DefaultJsonParserErrorHandler {
     static void OnTypeMismatch(std::string_view path) {
         throw std::runtime_error("JsonParser: type mismatch at path '" + std::string(path) + "'");
     }
+    static void OnJsonParseError(std::string_view json, std::exception& e) {
+        throw std::runtime_error("JsonParser: invalid json: " + std::string(e.what()));
+    }
 };
 
 struct Required {};
@@ -45,8 +48,10 @@ struct Optional {};
 template<typename Json, typename ErrorHandler = DefaultJsonParserErrorHandler>
 class JsonParser {
 public:
+    explicit JsonParser(std::string_view json, ErrorHandler error_handler = {}): error_handler_(error_handler), root_(builder_.Parse(json, error_handler_)) {}
+
     explicit JsonParser(const Json& root, ErrorHandler handler = {})
-        : root_(root), error_handler_(std::move(handler)) {}
+        : error_handler_(std::move(handler)), root_(root) {}
 
     template<template<typename> class Extractor, typename ExistencePolicy = Optional, typename Func,
              typename T = Extractor<Json>::ValueType>
@@ -110,6 +115,85 @@ public:
         return *this;
     }
 
+    template<template<typename J> class Extractor, typename ExistencePolicy = Optional, template<typename ...> class List, typename T = Extractor<Json>::ValueType>
+    JsonParser& AcquireArray(std::string_view path, List<T>& arr) {
+        static_assert(std::is_same_v<ExistencePolicy, Required> ||
+                          std::is_same_v<ExistencePolicy, Optional>,
+                      "JsonParser: unsupported ExistencePolicy");
+        static_assert(std::is_same_v<T, typename Extractor<Json>::ValueType>, "JsonParser: Acquire target type must match Extractor<Json>::ValueType");
+        // 把一个json数组填入arr
+        // ExistencePolicy只针对数组
+        // 内部元素如果出现类型不匹配的情况, 直接调用OnTypeMismatch（需要组装完整路径，如 a.b[2]）
+        const Json* node = Resolve(path);
+        if (!node || !JsonTraits<Json>::IsArray(*node)) {
+            if constexpr (std::is_same_v<ExistencePolicy, Optional>) {
+                arr = List<T>{};
+            } else {
+                if (!node) {
+                    error_handler_.OnMissing(path);
+                } else {
+                    error_handler_.OnTypeMismatch(path);
+                }
+            }
+            return *this;
+        }
+        arr.clear();
+        const std::size_t size = JsonTraits<Json>::GetArraySize(*node);
+        for (std::size_t i = 0; i < size; ++i) {
+            T value{};
+            if (!Extractor<Json>::Extract(JsonTraits<Json>::GetArrayElement(*node, i), value)) {
+                std::string element_path(path);
+                element_path += '[';
+                element_path += std::to_string(i);
+                element_path += ']';
+                error_handler_.OnTypeMismatch(element_path);
+                return *this;  // 若 ErrorHandler 返回，则中止填充
+            }
+            arr.push_back(std::move(value));
+        }
+        return *this;
+    }
+
+    template<template<typename J> class Extractor, typename ExistencePolicy = Optional, template<typename ...> class Map, typename T = Extractor<Json>::ValueType>
+    JsonParser& AcquireMap(std::string_view path, Map<std::string, T>& map) {
+        static_assert(std::is_same_v<ExistencePolicy, Required> ||
+                          std::is_same_v<ExistencePolicy, Optional>,
+                      "JsonParser: unsupported ExistencePolicy");
+        static_assert(std::is_same_v<T, typename Extractor<Json>::ValueType>, "JsonParser: Acquire target type must match Extractor<Json>::ValueType");
+        // 把一个json对象填入map
+        // ExistencePolicy只针对map
+        // 内部元素如果出现类型不匹配的情况, 直接调用OnTypeMismatch（需要组装完整路径，如 a.b.c）
+        const Json* node = Resolve(path);
+        if (!node || !JsonTraits<Json>::IsObject(*node)) {
+            if constexpr (std::is_same_v<ExistencePolicy, Optional>) {
+                map = Map<std::string, T>{};
+            } else {
+                if (!node) {
+                    error_handler_.OnMissing(path);
+                } else {
+                    error_handler_.OnTypeMismatch(path);
+                }
+            }
+            return *this;
+        }
+        map.clear();
+        JsonTraits<Json>::ForEachMember(*node, [&](std::string_view key, const Json& member) {
+            T value{};
+            if (!Extractor<Json>::Extract(member, value)) {
+                std::string member_path(path);
+                if (!member_path.empty()) {
+                    member_path += '.';
+                }
+                member_path += key;
+                error_handler_.OnTypeMismatch(member_path);
+                return false;  // 若 ErrorHandler 返回，则中止填充
+            }
+            map.emplace(std::string(key), std::move(value));
+            return true;
+        });
+        return *this;
+    }
+
 private:
     const Json* Resolve(std::string_view path) const {
         const Json* result = &root_;
@@ -163,8 +247,9 @@ private:
         return true;
     }
 
-    const Json& root_;
     ErrorHandler error_handler_;
+    JsonBuilder<Json, ErrorHandler> builder_;
+    const Json& root_;
 };
 
 }  // namespace sc::json

@@ -9,8 +9,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "../json_traits.h"
 
@@ -35,6 +38,14 @@ struct sc::json::JsonTraits<Json::Value> {
     }
     static std::size_t GetArraySize(const Json& json) { return json.size(); }
     static const Json& GetArrayElement(const Json& json, std::size_t index) { return json[static_cast<Json::ArrayIndex>(index)]; }
+    template <typename Func>
+    static void ForEachMember(const Json& json, Func&& func) {
+        for (const std::string& key : json.getMemberNames()) {
+            if (!func(std::string_view(key), json[key])) {
+                break;
+            }
+        }
+    }
 
     static int GetInt(const Json& json) { return json.asInt(); }
     static unsigned int GetUint(const Json& json) { return json.asUInt(); }
@@ -44,5 +55,24 @@ struct sc::json::JsonTraits<Json::Value> {
     static std::string GetString(const Json& json) { return json.asString(); }
     static bool GetBool(const Json& json) { return json.asBool(); }
 };  // namespace sc::json
+
+template <typename ErrorHandler>
+struct sc::json::JsonBuilder<Json::Value, ErrorHandler> {
+    Json::Value doc_{};
+
+    const Json::Value& Parse(std::string_view json, ErrorHandler& error_handler) {
+        Json::CharReaderBuilder builder;
+        std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+        Json::Value parsed;
+        std::string errors;
+        if (!reader->parse(json.data(), json.data() + json.size(), &parsed, &errors)) {
+            std::runtime_error e("jsoncpp parse error: " + errors);
+            error_handler.OnJsonParseError(json, e);
+            throw e;
+        }
+        doc_ = std::move(parsed);
+        return doc_;
+    }
+};
 
 #endif  // SCCOMMON_JSON_TRAITS_JSONCPP_H

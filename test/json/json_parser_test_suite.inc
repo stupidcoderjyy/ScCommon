@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <string_view>
 #include <stdexcept>
@@ -549,4 +550,83 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireUsesCustomErrorHandler) {
         EXPECT_EQ(std::string("req-002"), e.RequestId());
         EXPECT_EQ(std::string("no.such.path"), e.Path());
     }
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayInts) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    std::vector<int> arr;
+    parser.AcquireArray<JsonInt, Required>("list", arr);
+    ASSERT_EQ(3u, arr.size());
+    EXPECT_EQ(1, arr[0]);
+    EXPECT_EQ(2, arr[1]);
+    EXPECT_EQ(3, arr[2]);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayMissingOptional) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    std::vector<int> arr = {9};
+    parser.AcquireArray<JsonInt>("no.such.path", arr);
+    EXPECT_TRUE(arr.empty());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayMissingRequiredThrows) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    std::vector<int> arr;
+    EXPECT_THROW((parser.AcquireArray<JsonInt, Required>("no.such.path", arr)),
+                 std::runtime_error);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayElementMismatchPath) {
+    using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+    ErrorHandler::mismatch.clear();
+
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
+    std::vector<int> arr;
+    parser.AcquireArray<JsonInt, Required>("obj_list", arr);
+    ASSERT_EQ(1u, ErrorHandler::mismatch.size());
+    EXPECT_EQ(std::string("obj_list[0]"), ErrorHandler::mismatch.front());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapInts) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    std::map<std::string, int> map;
+    parser.AcquireMap<JsonInt, Required>("a", map);
+    ASSERT_EQ(1u, map.size());
+    EXPECT_EQ(42, map["b"]);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapMissingOptional) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    std::map<std::string, int> map;
+    parser.AcquireMap<JsonInt>("no.such.path", map);
+    EXPECT_TRUE(map.empty());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapValueMismatchPath) {
+    using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+    ErrorHandler::mismatch.clear();
+
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
+    std::map<std::string, std::string> map;
+    parser.AcquireMap<JsonString, Required>("a", map);
+    ASSERT_EQ(1u, ErrorHandler::mismatch.size());
+    EXPECT_EQ(std::string("a.b"), ErrorHandler::mismatch.front());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ConstructFromString) {
+    JsonParser<SC_JSON_TYPE> parser(std::string_view(R"({"a":{"b":42}})"));
+    int value = 0;
+    parser.Acquire<JsonInt, Required>("a.b", value);
+    EXPECT_EQ(42, value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ConstructFromInvalidStringThrows) {
+    EXPECT_THROW((JsonParser<SC_JSON_TYPE>(std::string_view("{oops"))), std::runtime_error);
 }

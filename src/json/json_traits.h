@@ -31,6 +31,9 @@ struct JsonTraits {
     static const Json& GetChild(const Json&, std::string_view key);
     static std::size_t GetArraySize(const Json&);
     static const Json& GetArrayElement(const Json&, std::size_t index);
+    // 遍历对象成员：func(key, value)；func 返回 false 时提前终止。
+    template <typename Func>
+    static void ForEachMember(const Json&, Func&&);
 
     static int GetInt(const Json&);
     static unsigned int GetUint(const Json&);
@@ -40,7 +43,16 @@ struct JsonTraits {
     static std::string GetString(const Json&);
     static bool GetBool(const Json&);
 };
+
+// JsonBuilder：从 string_view 解析出 Json，并持有解析结果（含所需分配器），
+// 其生命周期随持有它的 JsonParser；解析失败时调用 ErrorHandler::OnJsonParseError。
+template <typename Json, typename ErrorHandler>
+struct JsonBuilder {
+    const Json& Parse(std::string_view json, ErrorHandler& error_handler);
+};
+
 //NOLINTEND
+
 
 }  // namespace sc::json
 
