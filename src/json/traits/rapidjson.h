@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -54,6 +55,16 @@ struct sc::json::JsonTraits<rapidjson::Value> {
     }
     static const Json& GetChild(const Json& json, std::string_view key) {
         return json[std::string(key).c_str()];
+    }
+    static const Json* TryGetChild(const Json& json, std::string_view key) {
+        if (!json.IsObject()) {
+            return nullptr;
+        }
+        // StringRef 构造出「常量字符串」视图，不拷贝、不分配
+        const Json name(
+                rapidjson::StringRef(key.data(), static_cast<rapidjson::SizeType>(key.size())));
+        const auto it = json.FindMember(name);
+        return it == json.MemberEnd() ? nullptr : &it->value;
     }
     static std::size_t GetArraySize(const Json& json) { return json.Size(); }
     static const Json& GetArrayElement(const Json& json, std::size_t index) {
@@ -119,11 +130,12 @@ public:
     JsonBuilder() = default;
 
     explicit JsonBuilder(std::string_view json, ErrorHandler error_handler = {}) {
-        const std::string text(json);  // rapidjson 需要 NUL 结尾的输入
-        doc_.Parse(text.c_str());
-        if (doc_.HasParseError()) {
+        doc_.emplace();  // Document 自带的解析栈按需构造，只用 root 构造时不分配
+        // 长度版解析：直接读输入缓冲，不必先拷贝成 NUL 结尾的 std::string
+        doc_->Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(json.data(), json.size());
+        if (doc_->HasParseError()) {
             std::runtime_error e(
-                    "rapidjson parse error at offset " + std::to_string(doc_.GetErrorOffset()));
+                    "rapidjson parse error at offset " + std::to_string(doc_->GetErrorOffset()));
             error_handler.OnJsonParseError(json, e);
             throw std::move(e);
         }
@@ -136,10 +148,10 @@ public:
 
     // Document 是 Value 的子类，且自带分配器；分配器随 JsonBuilder 存活，
     // 因此返回的 Value 引用在 JsonParser 生命周期内始终有效。
-    [[nodiscard]] const rapidjson::Value& json() const { return doc_; }
+    [[nodiscard]] const rapidjson::Value& json() const { return *doc_; }
 
 private:
-    rapidjson::Document doc_;
+    std::optional<rapidjson::Document> doc_;
 };
 
 #endif  //SCCOMMON_RAPIDJSON_N_H

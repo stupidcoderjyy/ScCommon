@@ -29,6 +29,9 @@ struct JsonTraits {
 
     static bool HasKey(const Json&, std::string_view key);
     static const Json& GetChild(const Json&, std::string_view key);
+    // 一次查找：命中返回子节点指针，未命中或当前节点不是对象时返回 nullptr。
+    // 路径解析只走这一个接口；HasKey/GetChild 保留供其它用途。
+    static const Json* TryGetChild(const Json&, std::string_view key);
     static std::size_t GetArraySize(const Json&);
     static const Json& GetArrayElement(const Json&, std::size_t index);
     // 遍历对象成员：func(key, value)；func 返回 false 时提前终止。

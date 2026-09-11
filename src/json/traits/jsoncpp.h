@@ -39,14 +39,23 @@ struct JsonTraits<Json::Value> {
     static const Json& GetChild(const Json& json, std::string_view key) {
         return json[std::string(key)];
     }
+    static const Json* TryGetChild(const Json& json, std::string_view key) {
+        if (!json.isObject()) {
+            return nullptr;
+        }
+        // 指针区间版 find：不构造临时 std::string，命中返回节点指针
+        return json.find(key.data(), key.data() + key.size());
+    }
     static std::size_t GetArraySize(const Json& json) { return json.size(); }
     static const Json& GetArrayElement(const Json& json, std::size_t index) {
         return json[static_cast<Json::ArrayIndex>(index)];
     }
     template <typename Func>
     static void ForEachMember(const Json& json, Func&& func) {
-        for (const std::string& key : json.getMemberNames()) {
-            if (!func(std::string_view(key), json[key])) {
+        // 直接迭代，避免 getMemberNames() 每次返回 vector<string> 的分配与键拷贝
+        for (auto it = json.begin(); it != json.end(); ++it) {
+            const std::string key = it.name();
+            if (!func(std::string_view(key), *it)) {
                 break;
             }
         }

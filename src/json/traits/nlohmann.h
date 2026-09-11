@@ -63,6 +63,13 @@ struct sc::json::JsonTraits<nlohmann::json> {
     static const Json& GetChild(const Json& json, std::string_view key) {
         return json.at(std::string(key));
     }
+    static const Json* TryGetChild(const Json& json, std::string_view key) {
+        if (!json.is_object()) {
+            return nullptr;
+        }
+        const auto it = json.find(std::string(key));
+        return it == json.end() ? nullptr : &*it;
+    }
     static std::size_t GetArraySize(const Json& json) { return json.size(); }
     static const Json& GetArrayElement(const Json& json, std::size_t index) {
         return json.at(index);

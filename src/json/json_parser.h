@@ -11,12 +11,12 @@
 
 #include <charconv>
 #include <cstddef>
-#include <stack>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #if defined(NLOHMANN_JSON_HPP) || defined(INCLUDE_NLOHMANN_JSON_HPP_) || \
         __has_include(<nlohmann/json.hpp>)
@@ -36,9 +36,7 @@ namespace sc::json {
 //   OnTypeMismatch     —— 路径解析成功，但节点无法转换为目标类型
 //   OnJsonParseError   —— 字符串构造 JsonParser 时 JSON 文本本身非法
 struct DefaultJsonParserErrorHandler {
-    static void OnPathResolveError(const std::exception& e) {
-        throw std::runtime_error(e.what());
-    }
+    static void OnPathResolveError(const std::exception& e) { throw std::runtime_error(e.what()); }
     static void OnTypeMismatch(std::string_view path) {
         throw std::runtime_error("JsonParser: type mismatch at path '" + std::string(path) + "'");
     }
@@ -66,16 +64,12 @@ public:
     explicit JsonParser(std::string_view json, ErrorHandler error_handler = {})
         : error_handler_(std::move(error_handler)),
           builder_(json, error_handler_),
-          root_(builder_.json()) {
-        stack_.push(&root_);
-    }
+          root_(builder_.json()) {}
 
     explicit JsonParser(const Json& root, ErrorHandler handler = {})
-        : error_handler_(std::move(handler)), root_(root) {
-        stack_.push(&root_);
-    }
+        : error_handler_(std::move(handler)), root_(root) {}
 
-    const Json& json() const { return *stack_.top(); }
+    const Json& json() const { return *Current(); }
 
     template <template <typename> class Extractor,
             typename ExistencePolicy = Optional,
@@ -174,18 +168,21 @@ public:
             return *this;
         }
         const std::size_t size = JsonTraits<Json>::GetArraySize(*node);
-        arr.resize(size);
+        arr.clear();
+        if constexpr (requires { arr.reserve(std::size_t{}); }) {
+            arr.reserve(size);
+        }
         for (std::size_t i = 0; i < size; ++i) {
             T value{};
             if (!Extractor<Json>::Extract(JsonTraits<Json>::GetArrayElement(*node, i), value)) {
                 std::string element_path = PathString(path);
                 element_path += '[';
-                element_path += std::to_string(i);
+                AppendNumber(element_path, i);
                 element_path += ']';
                 error_handler_.OnTypeMismatch(element_path);
                 return *this;  // 若 ErrorHandler 返回，则中止填充
             }
-            arr[i] = std::move(value);
+            arr.push_back(std::move(value));
         }
         return *this;
     }
@@ -249,7 +246,7 @@ private:
     template <typename ExistencePolicy, std::size_t n>
     const Json* Resolve(const Parts<n>& parts, std::size_t& actual) {
         actual = 0;
-        const Json* node = stack_.top();
+        const Json* node = Current();
         for (std::size_t i = 0; i < parts.Size(); ++i) {
             const std::string_view token = parts[i];
             const Json* next = Step(node, token);
@@ -277,7 +274,7 @@ private:
             const std::string_view digits = token.substr(1, token.size() - 2);
             std::size_t index = 0;
             if (auto [ptr, ec] =
-                        std::from_chars(digits.data(), digits.data() + digits.size(), index);
+                            std::from_chars(digits.data(), digits.data() + digits.size(), index);
                     ec != std::errc() || ptr != digits.data() + digits.size()) {
                 return nullptr;
             }
@@ -287,24 +284,31 @@ private:
             }
             return &JsonTraits<Json>::GetArrayElement(*node, index);
         }
-        if (!JsonTraits<Json>::IsObject(*node) || !JsonTraits<Json>::HasKey(*node, token)) {
-            return nullptr;
-        }
-        return &JsonTraits<Json>::GetChild(*node, token);
+        return JsonTraits<Json>::TryGetChild(*node, token);
     }
 
-    void Push(const Json* node) { stack_.push(node); }
+    // 当前节点：栈为空表示根节点，因此构造 JsonParser 时不需要任何堆分配。
+    const Json* Current() const noexcept { return stack_.empty() ? &root_ : stack_.back(); }
+
+    void Push(const Json* node) { stack_.push_back(node); }
 
     void PopOne() noexcept {
-        if (stack_.size() > 1) {
-            stack_.pop();
+        if (!stack_.empty()) {
+            stack_.pop_back();
         }
     }
 
-    // 把编译期路径还原成 "a.b[2].c" 形式的字符串，用于错误回调。
+    static void AppendNumber(std::string& out, std::size_t value) {
+        char buf[24];
+        if (const auto [end, ec] = std::to_chars(buf, buf + sizeof(buf), value);
+                ec == std::errc()) {
+            out.append(buf, end);
+        }
+    }
+
+    // 把编译期路径还原成 "a.b[2].c" 形式并追加到 out。
     template <std::size_t n>
-    static std::string PathString(const Parts<n>& parts) {
-        std::string out;
+    static void AppendPath(std::string& out, const Parts<n>& parts) {
         for (std::size_t i = 0; i < parts.Size(); ++i) {
             const std::string_view token = parts[i];
             if (const bool is_index = !token.empty() && token.front() == '[';
@@ -313,21 +317,38 @@ private:
             }
             out += token;
         }
+    }
+
+    // 把编译期路径还原成 "a.b[2].c" 形式的字符串，用于错误回调。
+    template <std::size_t n>
+    static std::string PathString(const Parts<n>& parts) {
+        std::string out;
+        AppendPath(out, parts);
         return out;
     }
 
+    // 失败信息一次成串（预留容量 + 追加），避免多次临时字符串分配。
     template <std::size_t n>
-    static std::string ResolveErrorMessage(const Parts<n>& parts, std::size_t actual,
-                                           std::string_view token) {
-        return "JsonParser: cannot resolve path '" + PathString(parts) + "' at segment '" +
-               std::string(token) + "' (resolved " + std::to_string(actual) + " of " +
-               std::to_string(parts.Size()) + " segments)";
+    static std::string ResolveErrorMessage(
+            const Parts<n>& parts, std::size_t actual, std::string_view token) {
+        std::string out;
+        out.reserve(64 + parts.Size() * 8 + token.size());
+        out += "JsonParser: cannot resolve path '";
+        AppendPath(out, parts);
+        out += "' at segment '";
+        out.append(token);
+        out += "' (resolved ";
+        AppendNumber(out, actual);
+        out += " of ";
+        AppendNumber(out, parts.Size());
+        out += " segments)";
+        return out;
     }
 
     ErrorHandler error_handler_;
     JsonBuilder<Json, ErrorHandler> builder_;
     const Json& root_;
-    std::stack<const Json*> stack_;
+    std::vector<const Json*> stack_;
 };
 
 // RAII 作用域：作用域内所有路径都相对该节点解析，析构时自动回退。
@@ -336,8 +357,7 @@ private:
 template <typename Json, typename ErrorHandler, std::size_t n>
 class JsonScope {
 public:
-    JsonScope(JsonParser<Json, ErrorHandler>& parser, const Parts<n>& path)
-        : parser_(parser) {
+    JsonScope(JsonParser<Json, ErrorHandler>& parser, const Parts<n>& path) : parser_(parser) {
         if (auto node = parser_.template Resolve<Required>(path, actual_)) {
             parser_.Push(node);
             pushed_ = true;
