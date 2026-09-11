@@ -47,9 +47,11 @@ install(FILES
         json_traits.h
         json_extractor.h
         json_path.h
+        json_detail.h
+        json_error.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
 )
-install(DIRECTORY traits
+install(DIRECTORY traits view
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
         FILES_MATCHING PATTERN "*.h"
 )

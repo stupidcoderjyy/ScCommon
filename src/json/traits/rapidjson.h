@@ -10,11 +10,13 @@
 #include <rapidjson/document.h>
 
 #include <cstddef>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 template <>
 struct sc::json::JsonTraits<rapidjson::Value> {
@@ -50,12 +52,6 @@ struct sc::json::JsonTraits<rapidjson::Value> {
     static bool IsString(const Json& json) { return json.IsString(); }
     static bool IsBool(const Json& json) { return json.IsBool(); }
 
-    static bool HasKey(const Json& json, std::string_view key) {
-        return json.HasMember(std::string(key).c_str());
-    }
-    static const Json& GetChild(const Json& json, std::string_view key) {
-        return json[std::string(key).c_str()];
-    }
     static const Json* TryGetChild(const Json& json, std::string_view key) {
         if (!json.IsObject()) {
             return nullptr;
@@ -70,15 +66,33 @@ struct sc::json::JsonTraits<rapidjson::Value> {
     static const Json& GetArrayElement(const Json& json, std::size_t index) {
         return json[static_cast<rapidjson::SizeType>(index)];
     }
-    template <typename Func>
-    static void ForEachMember(const Json& json, Func&& func) {
-        for (auto it = json.MemberBegin(); it != json.MemberEnd(); ++it) {
-            if (!func(std::string_view(it->name.GetString(), it->name.GetStringLength()),
-                        it->value)) {
-                break;
-            }
+    struct MemberIterator {
+        using difference_type = std::ptrdiff_t;
+        using value_type = std::pair<std::string_view, const Json*>;
+        using reference = value_type;
+        using pointer = void;
+        using iterator_concept = std::forward_iterator_tag;
+        using iterator_category = std::forward_iterator_tag;
+
+        Json::ConstMemberIterator it{};
+
+        value_type operator*() const {
+            return {std::string_view(it->name.GetString(), it->name.GetStringLength()), &it->value};
         }
-    }
+        MemberIterator& operator++() {
+            ++it;
+            return *this;
+        }
+        MemberIterator operator++(int) {
+            MemberIterator copy = *this;
+            ++it;
+            return copy;
+        }
+        bool operator==(const MemberIterator& other) const { return it == other.it; }
+    };
+
+    static MemberIterator MemberBegin(const Json& json) { return {json.MemberBegin()}; }
+    static MemberIterator MemberEnd(const Json& json) { return {json.MemberEnd()}; }
 
     static int GetInt(const Json& json) {
         if (json.IsInt64()) {

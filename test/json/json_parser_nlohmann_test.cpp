@@ -10,11 +10,8 @@
 #define SC_JSON_MAKE_JSON() \
     SC_JSON_TYPE::parse(R"({"a":{"b":42},"neg":-7,"list":[1,2,3],"s":"hello","d":3.14,"flag":true,"obj_list":[{"id":1},{"id":2}],"point":{"x":10,"y":20},"big":9007199254740993,"big_neg":-9007199254740993})")
 #define SC_JSON_MAKE_JSON_LEAF() SC_JSON_TYPE::parse(R"(42)")
-#define SC_JSON_ARRAY_ELEMENT(arr, index) *(arr)[index]
-
 #include "json_parser_test_suite.inc"
 
-#undef SC_JSON_ARRAY_ELEMENT
 #undef SC_JSON_MAKE_JSON_LEAF
 #undef SC_JSON_MAKE_JSON
 #undef SC_JSON_TYPE

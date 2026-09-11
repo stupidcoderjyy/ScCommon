@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -33,12 +34,6 @@ struct JsonTraits<Json::Value> {
     static bool IsString(const Json& json) { return json.isString(); }
     static bool IsBool(const Json& json) { return json.isBool(); }
 
-    static bool HasKey(const Json& json, std::string_view key) {
-        return json.isMember(std::string(key));
-    }
-    static const Json& GetChild(const Json& json, std::string_view key) {
-        return json[std::string(key)];
-    }
     static const Json* TryGetChild(const Json& json, std::string_view key) {
         if (!json.isObject()) {
             return nullptr;
@@ -50,16 +45,36 @@ struct JsonTraits<Json::Value> {
     static const Json& GetArrayElement(const Json& json, std::size_t index) {
         return json[static_cast<Json::ArrayIndex>(index)];
     }
-    template <typename Func>
-    static void ForEachMember(const Json& json, Func&& func) {
-        // 直接迭代，避免 getMemberNames() 每次返回 vector<string> 的分配与键拷贝
-        for (auto it = json.begin(); it != json.end(); ++it) {
-            const std::string key = it.name();
-            if (!func(std::string_view(key), *it)) {
-                break;
-            }
+    struct MemberIterator {
+        using difference_type = std::ptrdiff_t;
+        using value_type = std::pair<std::string_view, const Json*>;
+        using reference = value_type;
+        using pointer = void;
+        using iterator_concept = std::forward_iterator_tag;
+        using iterator_category = std::forward_iterator_tag;
+
+        Json::const_iterator it{};
+        // jsoncpp 的 name() 按值返回 std::string，键必须由迭代器持有
+        mutable std::string key{};
+
+        value_type operator*() const {
+            key = it.name();
+            return {std::string_view(key), &*it};
         }
-    }
+        MemberIterator& operator++() {
+            ++it;
+            return *this;
+        }
+        MemberIterator operator++(int) {
+            MemberIterator copy = *this;
+            ++it;
+            return copy;
+        }
+        bool operator==(const MemberIterator& other) const { return it == other.it; }
+    };
+
+    static MemberIterator MemberBegin(const Json& json) { return {json.begin()}; }
+    static MemberIterator MemberEnd(const Json& json) { return {json.end()}; }
 
     static int GetInt(const Json& json) { return json.asInt(); }
     static unsigned int GetUint(const Json& json) { return json.asUInt(); }

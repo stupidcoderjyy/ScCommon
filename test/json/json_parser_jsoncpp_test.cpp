@@ -31,11 +31,8 @@ Json::Value MakeLeaf() { return {42}; }
 #define SC_JSON_TYPE Json::Value
 #define SC_JSON_MAKE_JSON() MakeJson()
 #define SC_JSON_MAKE_JSON_LEAF() MakeLeaf()
-#define SC_JSON_ARRAY_ELEMENT(arr, index) *(arr)[index]
-
 #include "json_parser_test_suite.inc"
 
-#undef SC_JSON_ARRAY_ELEMENT
 #undef SC_JSON_MAKE_JSON_LEAF
 #undef SC_JSON_MAKE_JSON
 #undef SC_JSON_TYPE

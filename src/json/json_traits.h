@@ -27,17 +27,15 @@ struct JsonTraits {
     static bool IsString(const Json&);
     static bool IsBool(const Json&);
 
-    static bool HasKey(const Json&, std::string_view key);
-    static const Json& GetChild(const Json&, std::string_view key);
     // 一次查找：命中返回子节点指针，未命中或当前节点不是对象时返回 nullptr。
-    // 路径解析只走这一个接口；HasKey/GetChild 保留供其它用途。
+    // 路径解析只走这一个接口。
     static const Json* TryGetChild(const Json&, std::string_view key);
     static std::size_t GetArraySize(const Json&);
     static const Json& GetArrayElement(const Json&, std::size_t index);
-    // 遍历对象成员：func(key, value)；func 返回 false 时提前终止。
-    template <typename Func>
-    static void ForEachMember(const Json&, Func&&);
-
+    // 成员枚举：*it 得到 pair<string_view, const Json*>，供 JsonObjectView 零拷贝迭代。
+    using MemberIterator = void;  // 由各库特化提供实际类型
+    static MemberIterator MemberBegin(const Json&);
+    static MemberIterator MemberEnd(const Json&);
     static int GetInt(const Json&);
     static unsigned int GetUint(const Json&);
     static std::int64_t GetInt64(const Json&);

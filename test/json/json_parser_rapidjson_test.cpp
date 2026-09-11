@@ -34,12 +34,8 @@ rapidjson::Value MakeLeaf() { return rapidjson::Value(42); }
 #define SC_JSON_TYPE rapidjson::Value
 #define SC_JSON_MAKE_JSON() MakeJson()
 #define SC_JSON_MAKE_JSON_LEAF() MakeLeaf()
-// JsonArray 对 rapidjson 是零拷贝指针视图，元素为 const Value*。
-#define SC_JSON_ARRAY_ELEMENT(arr, index) *(arr)[index]
-
 #include "json_parser_test_suite.inc"
 
-#undef SC_JSON_ARRAY_ELEMENT
 #undef SC_JSON_MAKE_JSON_LEAF
 #undef SC_JSON_MAKE_JSON
 #undef SC_JSON_TYPE
