@@ -17,9 +17,10 @@
 
 #include "../json_traits.h"
 
+namespace sc::json {
 // JsonCpp 适配：JsonType = Json::Value。
 template <>
-struct sc::json::JsonTraits<Json::Value> {
+struct JsonTraits<Json::Value> {
     using Json = Json::Value;
 
     static bool IsObject(const Json& json) { return json.isObject(); }
@@ -32,12 +33,16 @@ struct sc::json::JsonTraits<Json::Value> {
     static bool IsString(const Json& json) { return json.isString(); }
     static bool IsBool(const Json& json) { return json.isBool(); }
 
-    static bool HasKey(const Json& json, std::string_view key) { return json.isMember(std::string(key)); }
+    static bool HasKey(const Json& json, std::string_view key) {
+        return json.isMember(std::string(key));
+    }
     static const Json& GetChild(const Json& json, std::string_view key) {
         return json[std::string(key)];
     }
     static std::size_t GetArraySize(const Json& json) { return json.size(); }
-    static const Json& GetArrayElement(const Json& json, std::size_t index) { return json[static_cast<Json::ArrayIndex>(index)]; }
+    static const Json& GetArrayElement(const Json& json, std::size_t index) {
+        return json[static_cast<Json::ArrayIndex>(index)];
+    }
     template <typename Func>
     static void ForEachMember(const Json& json, Func&& func) {
         for (const std::string& key : json.getMemberNames()) {
@@ -57,10 +62,11 @@ struct sc::json::JsonTraits<Json::Value> {
 };  // namespace sc::json
 
 template <typename ErrorHandler>
-struct sc::json::JsonBuilder<Json::Value, ErrorHandler> {
-    Json::Value doc_{};
+class JsonBuilder<Json::Value, ErrorHandler> {
+public:
+    JsonBuilder() = default;
 
-    const Json::Value& Parse(std::string_view json, ErrorHandler& error_handler) {
+    explicit JsonBuilder(std::string_view json, ErrorHandler error_handler = {}) {
         Json::CharReaderBuilder builder;
         std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
         Json::Value parsed;
@@ -68,11 +74,22 @@ struct sc::json::JsonBuilder<Json::Value, ErrorHandler> {
         if (!reader->parse(json.data(), json.data() + json.size(), &parsed, &errors)) {
             std::runtime_error e("jsoncpp parse error: " + errors);
             error_handler.OnJsonParseError(json, e);
-            throw e;
+            throw std::move(e);
         }
-        doc_ = std::move(parsed);
-        return doc_;
+        json_ = std::move(parsed);
     }
+
+    JsonBuilder(const JsonBuilder&) = delete;
+    JsonBuilder(JsonBuilder&&) = delete;
+    JsonBuilder& operator=(const JsonBuilder&) = delete;
+    JsonBuilder& operator=(JsonBuilder&&) = delete;
+
+    [[nodiscard]] const Json::Value& json() const { return json_; }
+
+private:
+    Json::Value json_;
 };
+
+}  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_TRAITS_JSONCPP_H

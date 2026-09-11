@@ -51,40 +51,31 @@ using JsonObject = JsonElement<Json, const Json*>;
 template <typename Json, typename T>
 bool Extractor<Json, T>::Extract(const Json& json, T& val) {
     if constexpr (std::is_same_v<T, int>) {
-        if (!JsonTraits<Json>::IsInt(json))
-            return false;
+        if (!JsonTraits<Json>::IsInt(json)) return false;
         val = JsonTraits<Json>::GetInt(json);
     } else if constexpr (std::is_same_v<T, unsigned int>) {
-        if (!JsonTraits<Json>::IsUint(json))
-            return false;
+        if (!JsonTraits<Json>::IsUint(json)) return false;
         val = JsonTraits<Json>::GetUint(json);
     } else if constexpr (std::is_same_v<T, std::int64_t>) {
-        if (!JsonTraits<Json>::IsInt64(json))
-            return false;
+        if (!JsonTraits<Json>::IsInt64(json)) return false;
         val = JsonTraits<Json>::GetInt64(json);
     } else if constexpr (std::is_same_v<T, std::uint64_t>) {
-        if (!JsonTraits<Json>::IsUint64(json))
-            return false;
+        if (!JsonTraits<Json>::IsUint64(json)) return false;
         val = JsonTraits<Json>::GetUint64(json);
     } else if constexpr (std::is_same_v<T, double>) {
-        if (!JsonTraits<Json>::IsDouble(json))
-            return false;
+        if (!JsonTraits<Json>::IsDouble(json)) return false;
         val = JsonTraits<Json>::GetDouble(json);
     } else if constexpr (std::is_same_v<T, std::string>) {
-        if (!JsonTraits<Json>::IsString(json))
-            return false;
+        if (!JsonTraits<Json>::IsString(json)) return false;
         val = JsonTraits<Json>::GetString(json);
     } else if constexpr (std::is_same_v<T, bool>) {
-        if (!JsonTraits<Json>::IsBool(json))
-            return false;
+        if (!JsonTraits<Json>::IsBool(json)) return false;
         val = JsonTraits<Json>::GetBool(json);
     } else if constexpr (std::is_same_v<T, const Json*>) {
-        if (!JsonTraits<Json>::IsObject(json))
-            return false;
+        if (!JsonTraits<Json>::IsObject(json)) return false;
         val = &json;
     } else if constexpr (std::is_same_v<T, std::vector<const Json*>>) {
-        if (!JsonTraits<Json>::IsArray(json))
-            return false;
+        if (!JsonTraits<Json>::IsArray(json)) return false;
         const std::size_t size = JsonTraits<Json>::GetArraySize(json);
         val.reserve(size);
         for (std::size_t i = 0; i < size; ++i) {

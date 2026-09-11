@@ -74,7 +74,7 @@ struct SC_JSON_CONCAT(MemberHandler_, SC_JSON_TEST_SUITE_NAME) {
 
     void process(const SC_JSON_TYPE& json) {
         JsonParser parser(json);
-        parser.Parse<JsonInt, Required>("a.b", [this](int v) { onInt(v); });
+        parser.Parse<JsonInt, Required>("a.b"_path, [this](int v) { onInt(v); });
     }
 };
 
@@ -103,7 +103,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseNestedObject) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt, Required>("a.b", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Required>("a.b"_path, [&](int v) { value = v; });
     EXPECT_EQ(42, value);
 }
 
@@ -111,7 +111,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseNegativeInteger) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt, Required>("neg", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Required>("neg"_path, [&](int v) { value = v; });
     EXPECT_EQ(-7, value);
 }
 
@@ -119,7 +119,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseInt64) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    parser.Parse<JsonInt64, Required>("big", [&](std::int64_t v) { value = v; });
+    parser.Parse<JsonInt64, Required>("big"_path, [&](std::int64_t v) { value = v; });
     EXPECT_EQ(9007199254740993LL, value);
 }
 
@@ -127,7 +127,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseInt64Negative) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    parser.Parse<JsonInt64, Required>("big_neg", [&](std::int64_t v) { value = v; });
+    parser.Parse<JsonInt64, Required>("big_neg"_path, [&](std::int64_t v) { value = v; });
     EXPECT_EQ(-9007199254740993LL, value);
 }
 
@@ -135,7 +135,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseInt64SmallInt) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    parser.Parse<JsonInt64, Required>("a.b", [&](std::int64_t v) { value = v; });
+    parser.Parse<JsonInt64, Required>("a.b"_path, [&](std::int64_t v) { value = v; });
     EXPECT_EQ(42LL, value);
 }
 
@@ -143,7 +143,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireInt64) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    parser.Acquire<JsonInt64, Required>("big", value);
+    parser.Acquire<JsonInt64, Required>("big"_path, value);
     EXPECT_EQ(9007199254740993LL, value);
 }
 
@@ -151,8 +151,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, Int64TypeMismatchThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    EXPECT_THROW((parser.Acquire<JsonInt64, Required>("d", value)), std::runtime_error);
-    EXPECT_THROW((parser.Acquire<JsonInt64, Required>("s", value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt64, Required>("d"_path, value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt64, Required>("s"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, IntLosslessRangeChecks) {
@@ -160,15 +160,15 @@ TEST(SC_JSON_TEST_SUITE_NAME, IntLosslessRangeChecks) {
     JsonParser parser(json);
     int value = 0;
     // 超出 int32 范围（上下界）的整数值不能无损转 int，必须按类型不匹配处理。
-    EXPECT_THROW((parser.Acquire<JsonInt, Required>("big", value)), std::runtime_error);
-    EXPECT_THROW((parser.Acquire<JsonInt, Required>("big_neg", value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("big"_path, value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("big_neg"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ParseString) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::string value;
-    parser.Parse<JsonString, Required>("s", [&](const std::string& v) { value = v; });
+    parser.Parse<JsonString, Required>("s"_path, [&](const std::string& v) { value = v; });
     EXPECT_EQ(std::string("hello"), value);
 }
 
@@ -176,7 +176,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseDouble) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     double value = 0.0;
-    parser.Parse<JsonDouble, Required>("d", [&](double v) { value = v; });
+    parser.Parse<JsonDouble, Required>("d"_path, [&](double v) { value = v; });
     EXPECT_DOUBLE_EQ(3.14, value);
 }
 
@@ -184,7 +184,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseBool) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     bool value = false;
-    parser.Parse<JsonBool, Required>("flag", [&](bool v) { value = v; });
+    parser.Parse<JsonBool, Required>("flag"_path, [&](bool v) { value = v; });
     EXPECT_TRUE(value);
 }
 
@@ -192,7 +192,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseArrayIndex) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt, Required>("list[1]", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Required>("list[1]"_path, [&](int v) { value = v; });
     EXPECT_EQ(2, value);
 }
 
@@ -200,7 +200,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseNestedArrayIndex) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt, Required>("obj_list[1].id", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Required>("obj_list[1].id"_path, [&](int v) { value = v; });
     EXPECT_EQ(2, value);
 }
 
@@ -208,7 +208,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseEmptyPathUsesRoot) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON_LEAF();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt, Required>("", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Required>(""_path, [&](int v) { value = v; });
     EXPECT_EQ(42, value);
 }
 
@@ -219,9 +219,9 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseChainedCalls) {
     std::string stringValue;
     bool boolValue = false;
     JsonParser<SC_JSON_TYPE>& ref =
-            parser.Parse<JsonInt, Required>("a.b", [&](int v) { intValue = v; })
-                    .Parse<JsonString, Required>("s", [&](const std::string& v) { stringValue = v; })
-                    .Parse<JsonBool, Required>("flag", [&](bool v) { boolValue = v; });
+            parser.Parse<JsonInt, Required>("a.b"_path, [&](int v) { intValue = v; })
+                    .Parse<JsonString, Required>("s"_path, [&](const std::string& v) { stringValue = v; })
+                    .Parse<JsonBool, Required>("flag"_path, [&](bool v) { boolValue = v; });
     EXPECT_EQ(&ref, &parser);
     EXPECT_EQ(42, intValue);
     EXPECT_EQ(std::string("hello"), stringValue);
@@ -232,7 +232,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OptionalMissingCallsCallbackWithDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = -1;
-    parser.Parse<JsonInt, Optional>("no.such.path", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Optional>("no.such.path"_path, [&](int v) { value = v; });
     EXPECT_EQ(0, value);
 }
 
@@ -240,7 +240,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OptionalTypeMismatchCallsCallbackWithDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = -1;
-    parser.Parse<JsonInt, Optional>("s", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Optional>("s"_path, [&](int v) { value = v; });
     EXPECT_EQ(0, value);
 }
 
@@ -248,7 +248,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OptionalArrayIndexOutOfRangeCallsCallbackWithDefau
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = -1;
-    parser.Parse<JsonInt, Optional>("list[9]", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Optional>("list[9]"_path, [&](int v) { value = v; });
     EXPECT_EQ(0, value);
 }
 
@@ -256,7 +256,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OptionalMissingUsesDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt>("no.such.path", [&](int v) { value = v; }, 42);
+    parser.Parse<JsonInt>("no.such.path"_path, [&](int v) { value = v; }, 42);
     EXPECT_EQ(42, value);
 }
 
@@ -264,7 +264,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OptionalTypeMismatchUsesDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt>("s", [&](int v) { value = v; }, 7);
+    parser.Parse<JsonInt>("s"_path, [&](int v) { value = v; }, 7);
     EXPECT_EQ(7, value);
 }
 
@@ -272,7 +272,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OptionalStringUsesDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::string value;
-    parser.Parse<JsonString, Optional>("missing", [&](const std::string& v) { value = v; },
+    parser.Parse<JsonString, Optional>("missing"_path, [&](const std::string& v) { value = v; },
                                        std::string("unknown"));
     EXPECT_EQ(std::string("unknown"), value);
 }
@@ -281,7 +281,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, DefaultPolicyIsOptional) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = -1;
-    parser.Parse<JsonInt>("no.such.path", [&](int v) { value = v; });
+    parser.Parse<JsonInt>("no.such.path"_path, [&](int v) { value = v; });
     EXPECT_EQ(0, value);
 }
 
@@ -289,7 +289,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, DefaultPolicyWithDefaultValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt>("no.such.path", [&](int v) { value = v; }, 42);
+    parser.Parse<JsonInt>("no.such.path"_path, [&](int v) { value = v; }, 42);
     EXPECT_EQ(42, value);
 }
 
@@ -297,32 +297,32 @@ TEST(SC_JSON_TEST_SUITE_NAME, DefaultValuePresentUsesActual) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Parse<JsonInt>("a.b", [&](int v) { value = v; }, 0);
+    parser.Parse<JsonInt>("a.b"_path, [&](int v) { value = v; }, 0);
     EXPECT_EQ(42, value);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, RequiredMissingThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    EXPECT_THROW((parser.Parse<JsonInt, Required>("no.such.path", [](int) {})), std::runtime_error);
+    EXPECT_THROW((parser.Parse<JsonInt, Required>("no.such.path"_path, [](int) {})), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, RequiredTypeMismatchThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    EXPECT_THROW((parser.Parse<JsonInt, Required>("s", [](int) {})), std::runtime_error);
+    EXPECT_THROW((parser.Parse<JsonInt, Required>("s"_path, [](int) {})), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrayIndexOutOfRangeThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    EXPECT_THROW((parser.Parse<JsonInt, Required>("list[9]", [](int) {})), std::runtime_error);
+    EXPECT_THROW((parser.Parse<JsonInt, Required>("list[9]"_path, [](int) {})), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, TraversalTypeMismatchThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    EXPECT_THROW((parser.Parse<JsonInt, Required>("list.b", [](int) {})), std::runtime_error);
+    EXPECT_THROW((parser.Parse<JsonInt, Required>("list.b"_path, [](int) {})), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrayExtractor) {
@@ -332,14 +332,14 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayExtractor) {
     static_assert(std::is_same_v<ArrayType, std::vector<const SC_JSON_TYPE*>>,
                   "JsonArray must be a zero-copy pointer view");
     bool called = false;
-    parser.Parse<JsonArray, Required>("list", [&](const ArrayType& arr) {
+    parser.Parse<JsonArray, Required>("list"_path, [&](const ArrayType& arr) {
         called = true;
         ASSERT_EQ(3u, arr.size());
         const SC_JSON_TYPE& listNode = JsonTraits<SC_JSON_TYPE>::GetChild(json, "list");
         EXPECT_EQ(arr[1], &JsonTraits<SC_JSON_TYPE>::GetArrayElement(listNode, 1));
         int value = 0;
         JsonParser sub(SC_JSON_ARRAY_ELEMENT(arr, 1));
-        sub.Parse<JsonInt, Required>("", [&](int v) { value = v; });
+        sub.Parse<JsonInt, Required>(""_path, [&](int v) { value = v; });
         EXPECT_EQ(2, value);
     });
     EXPECT_TRUE(called);
@@ -349,7 +349,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireJsonArray) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::vector<const SC_JSON_TYPE*> arr;
-    parser.Acquire<JsonArray, Required>("list", arr);
+    parser.Acquire<JsonArray, Required>("list"_path, arr);
     ASSERT_EQ(3u, arr.size());
     EXPECT_EQ(2, JsonTraits<SC_JSON_TYPE>::GetInt(*arr[1]));
 }
@@ -360,7 +360,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, CustomExtractor) {
     JsonParser parser(json);
     Point point;
     parser.Parse<SC_JSON_CONCAT(PointExtractor_, SC_JSON_TEST_SUITE_NAME), Required>(
-            "point", [&](const Point& p) { point = p; });
+            "point"_path, [&](const Point& p) { point = p; });
     EXPECT_EQ(10, point.x);
     EXPECT_EQ(20, point.y);
 }
@@ -371,7 +371,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, MemberFunctionBinding) {
     JsonParser parser(json);
     MemberHandler handler;
     parser.Parse<JsonInt, Required>(
-            "a.b", [ObjectPtr = &handler]<typename T0>(T0 && PH1) { ObjectPtr->onInt(std::forward<T0>(PH1)); });
+            "a.b"_path, [ObjectPtr = &handler]<typename T0>(T0 && PH1) { ObjectPtr->onInt(std::forward<T0>(PH1)); });
     EXPECT_EQ(42, handler.value);
 }
 
@@ -391,17 +391,17 @@ TEST(SC_JSON_TEST_SUITE_NAME, CustomErrorHandler) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
     bool called = false;
-    parser.Parse<JsonInt, Required>("no.such.path", [&](int) { called = true; });
+    parser.Parse<JsonInt, Required>("no.such.path"_path, [&](int) { called = true; });
     EXPECT_FALSE(called);
     ASSERT_EQ(1u, ErrorHandler::missing.size());
     EXPECT_EQ(std::string("no.such.path"), ErrorHandler::missing.front());
 
-    parser.Parse<JsonInt, Required>("s", [&](int) { called = true; });
+    parser.Parse<JsonInt, Required>("s"_path, [&](int) { called = true; });
     ASSERT_EQ(1u, ErrorHandler::mismatch.size());
     EXPECT_EQ(std::string("s"), ErrorHandler::mismatch.front());
 
     int value = 0;
-    parser.Parse<JsonInt, Required>("a.b", [&](int v) { value = v; });
+    parser.Parse<JsonInt, Required>("a.b"_path, [&](int v) { value = v; });
     EXPECT_EQ(42, value);
 }
 
@@ -412,10 +412,10 @@ TEST(SC_JSON_TEST_SUITE_NAME, StatefulErrorHandlerCarriesExternalData) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser<SC_JSON_TYPE, Handler> parser(json, Handler("req-001"));
 
-    EXPECT_THROW((parser.Parse<JsonInt, Required>("no.such.path", [](int) {})), Exception);
+    EXPECT_THROW((parser.Parse<JsonInt, Required>("no.such.path"_path, [](int) {})), Exception);
 
     try {
-        parser.Parse<JsonInt, Required>("s", [](int) {});
+        parser.Parse<JsonInt, Required>("s"_path, [](int) {});
         FAIL() << "expected ContextException";
     } catch (const Exception& e) {
         EXPECT_EQ(std::string("req-001"), e.RequestId());
@@ -427,7 +427,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseJsonObject) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     bool called = false;
-    parser.Parse<JsonObject, Required>("a", [&](const SC_JSON_TYPE* obj) {
+    parser.Parse<JsonObject, Required>("a"_path, [&](const SC_JSON_TYPE* obj) {
         called = true;
         ASSERT_NE(nullptr, obj);
         EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsObject(*obj));
@@ -436,7 +436,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParseJsonObject) {
                           JsonTraits<SC_JSON_TYPE>::GetChild(*obj, "b")));
     });
     EXPECT_TRUE(called);
-    EXPECT_THROW((parser.Parse<JsonObject, Required>("s", [](const SC_JSON_TYPE*) {})),
+    EXPECT_THROW((parser.Parse<JsonObject, Required>("s"_path, [](const SC_JSON_TYPE*) {})),
                  std::runtime_error);
 }
 
@@ -444,7 +444,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireJsonObject) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     const SC_JSON_TYPE* obj = nullptr;
-    parser.Acquire<JsonObject, Required>("a", obj);
+    parser.Acquire<JsonObject, Required>("a"_path, obj);
     ASSERT_NE(nullptr, obj);
     EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsObject(*obj));
     EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::HasKey(*obj, "b"));
@@ -456,7 +456,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireAssignsValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Acquire<JsonInt, Required>("a.b", value);
+    parser.Acquire<JsonInt, Required>("a.b"_path, value);
     EXPECT_EQ(42, value);
 }
 
@@ -464,21 +464,21 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireRequiredMissingThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    EXPECT_THROW((parser.Acquire<JsonInt, Required>("no.such.path", value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("no.such.path"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireRequiredTypeMismatchThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    EXPECT_THROW((parser.Acquire<JsonInt, Required>("s", value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("s"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalMissingAssignsDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 123;
-    parser.Acquire<JsonInt>("no.such.path", value);
+    parser.Acquire<JsonInt>("no.such.path"_path, value);
     EXPECT_EQ(0, value);
 }
 
@@ -486,7 +486,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalTypeMismatchAssignsDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 123;
-    parser.Acquire<JsonInt>("s", value);
+    parser.Acquire<JsonInt>("s"_path, value);
     EXPECT_EQ(0, value);
 }
 
@@ -494,7 +494,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalUsesDefaultValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Acquire<JsonInt>("no.such.path", value, 42);
+    parser.Acquire<JsonInt>("no.such.path"_path, value, 42);
     EXPECT_EQ(42, value);
 }
 
@@ -502,7 +502,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalTypeMismatchUsesDefaultValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Acquire<JsonInt>("s", value, 42);
+    parser.Acquire<JsonInt>("s"_path, value, 42);
     EXPECT_EQ(42, value);
 }
 
@@ -510,7 +510,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireDefaultValuePresentUsesActual) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    parser.Acquire<JsonInt>("a.b", value, 7);
+    parser.Acquire<JsonInt>("a.b"_path, value, 7);
     EXPECT_EQ(42, value);
 }
 
@@ -518,7 +518,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalStringUsesDefaultValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::string value;
-    parser.Acquire<JsonString>("missing", value, std::string("unknown"));
+    parser.Acquire<JsonString>("missing"_path, value, std::string("unknown"));
     EXPECT_EQ(std::string("unknown"), value);
 }
 
@@ -528,9 +528,9 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireChained) {
     int intValue = 0;
     std::string stringValue;
     bool boolValue = false;
-    parser.Acquire<JsonInt, Required>("a.b", intValue)
-            .Acquire<JsonString, Required>("s", stringValue)
-            .Acquire<JsonBool, Required>("flag", boolValue);
+    parser.Acquire<JsonInt, Required>("a.b"_path, intValue)
+            .Acquire<JsonString, Required>("s"_path, stringValue)
+            .Acquire<JsonBool, Required>("flag"_path, boolValue);
     EXPECT_EQ(42, intValue);
     EXPECT_EQ(std::string("hello"), stringValue);
     EXPECT_TRUE(boolValue);
@@ -544,7 +544,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireUsesCustomErrorHandler) {
     JsonParser<SC_JSON_TYPE, Handler> parser(json, Handler("req-002"));
     int value = 0;
     try {
-        parser.Acquire<JsonInt, Required>("no.such.path", value);
+        parser.Acquire<JsonInt, Required>("no.such.path"_path, value);
         FAIL() << "expected ContextException";
     } catch (const Exception& e) {
         EXPECT_EQ(std::string("req-002"), e.RequestId());
@@ -556,7 +556,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayInts) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::vector<int> arr;
-    parser.AcquireArray<JsonInt, Required>("list", arr);
+    parser.AcquireArray<JsonInt, Required>("list"_path, arr);
     ASSERT_EQ(3u, arr.size());
     EXPECT_EQ(1, arr[0]);
     EXPECT_EQ(2, arr[1]);
@@ -567,7 +567,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayMissingOptional) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::vector<int> arr = {9};
-    parser.AcquireArray<JsonInt>("no.such.path", arr);
+    parser.AcquireArray<JsonInt>("no.such.path"_path, arr);
     EXPECT_TRUE(arr.empty());
 }
 
@@ -575,7 +575,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayMissingRequiredThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::vector<int> arr;
-    EXPECT_THROW((parser.AcquireArray<JsonInt, Required>("no.such.path", arr)),
+    EXPECT_THROW((parser.AcquireArray<JsonInt, Required>("no.such.path"_path, arr)),
                  std::runtime_error);
 }
 
@@ -586,7 +586,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayElementMismatchPath) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
     std::vector<int> arr;
-    parser.AcquireArray<JsonInt, Required>("obj_list", arr);
+    parser.AcquireArray<JsonInt, Required>("obj_list"_path, arr);
     ASSERT_EQ(1u, ErrorHandler::mismatch.size());
     EXPECT_EQ(std::string("obj_list[0]"), ErrorHandler::mismatch.front());
 }
@@ -595,7 +595,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapInts) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::map<std::string, int> map;
-    parser.AcquireMap<JsonInt, Required>("a", map);
+    parser.AcquireMap<JsonInt, Required>("a"_path, map);
     ASSERT_EQ(1u, map.size());
     EXPECT_EQ(42, map["b"]);
 }
@@ -604,7 +604,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapMissingOptional) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::map<std::string, int> map;
-    parser.AcquireMap<JsonInt>("no.such.path", map);
+    parser.AcquireMap<JsonInt>("no.such.path"_path, map);
     EXPECT_TRUE(map.empty());
 }
 
@@ -615,7 +615,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapValueMismatchPath) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
     std::map<std::string, std::string> map;
-    parser.AcquireMap<JsonString, Required>("a", map);
+    parser.AcquireMap<JsonString, Required>("a"_path, map);
     ASSERT_EQ(1u, ErrorHandler::mismatch.size());
     EXPECT_EQ(std::string("a.b"), ErrorHandler::mismatch.front());
 }
@@ -623,7 +623,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapValueMismatchPath) {
 TEST(SC_JSON_TEST_SUITE_NAME, ConstructFromString) {
     JsonParser<SC_JSON_TYPE> parser(std::string_view(R"({"a":{"b":42}})"));
     int value = 0;
-    parser.Acquire<JsonInt, Required>("a.b", value);
+    parser.Acquire<JsonInt, Required>("a.b"_path, value);
     EXPECT_EQ(42, value);
 }
 

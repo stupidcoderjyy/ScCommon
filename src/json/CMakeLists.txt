@@ -46,6 +46,7 @@ install(FILES
         json_parser.hpp
         json_traits.h
         json_extractor.h
+        json_path.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
 )
 install(DIRECTORY traits

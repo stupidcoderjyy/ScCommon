@@ -24,44 +24,46 @@ struct sc::json::JsonTraits<rapidjson::Value> {
     // Is<整型> 语义：JSON 整数值能无损转换到目标类型即为真（不要求存储标志一致）。
     static bool IsInt(const Json& json) {
         return json.IsInt() ||
-               (json.IsUint() &&
-                json.GetUint() <= static_cast<unsigned int>(std::numeric_limits<int>::max())) ||
+               (json.IsUint() && json.GetUint() <= static_cast<unsigned int>(
+                                                           std::numeric_limits<int>::max())) ||
                (json.IsInt64() && json.GetInt64() >= std::numeric_limits<int>::min() &&
-                json.GetInt64() <= std::numeric_limits<int>::max());
+                       json.GetInt64() <= std::numeric_limits<int>::max());
     }
     static bool IsUint(const Json& json) {
-        return json.IsUint() ||
-               (json.IsInt() && json.GetInt() >= 0) ||
+        return json.IsUint() || (json.IsInt() && json.GetInt() >= 0) ||
                (json.IsInt64() && json.GetInt64() >= 0 &&
-                json.GetInt64() <=
-                        static_cast<std::int64_t>(std::numeric_limits<unsigned int>::max()));
+                       json.GetInt64() <=
+                               static_cast<std::int64_t>(std::numeric_limits<unsigned int>::max()));
     }
     static bool IsInt64(const Json& json) {
         return json.IsInt() || json.IsUint() || json.IsInt64() ||
                (json.IsUint64() &&
-                json.GetUint64() <=
-                        static_cast<std::uint64_t>((std::numeric_limits<std::int64_t>::max)()));
+                       json.GetUint64() <= static_cast<std::uint64_t>(
+                                                   (std::numeric_limits<std::int64_t>::max)()));
     }
     static bool IsUint64(const Json& json) {
-        return json.IsUint() || json.IsUint64() ||
-               (json.IsInt() && json.GetInt() >= 0) ||
+        return json.IsUint() || json.IsUint64() || (json.IsInt() && json.GetInt() >= 0) ||
                (json.IsInt64() && json.GetInt64() >= 0);
     }
     static bool IsDouble(const Json& json) { return json.IsDouble(); }
     static bool IsString(const Json& json) { return json.IsString(); }
     static bool IsBool(const Json& json) { return json.IsBool(); }
 
-    static bool HasKey(const Json& json, std::string_view key) { return json.HasMember(std::string(key).c_str()); }
+    static bool HasKey(const Json& json, std::string_view key) {
+        return json.HasMember(std::string(key).c_str());
+    }
     static const Json& GetChild(const Json& json, std::string_view key) {
         return json[std::string(key).c_str()];
     }
     static std::size_t GetArraySize(const Json& json) { return json.Size(); }
-    static const Json& GetArrayElement(const Json& json, std::size_t index) { return json[static_cast<rapidjson::SizeType>(index)]; }
+    static const Json& GetArrayElement(const Json& json, std::size_t index) {
+        return json[static_cast<rapidjson::SizeType>(index)];
+    }
     template <typename Func>
     static void ForEachMember(const Json& json, Func&& func) {
         for (auto it = json.MemberBegin(); it != json.MemberEnd(); ++it) {
             if (!func(std::string_view(it->name.GetString(), it->name.GetStringLength()),
-                      it->value)) {
+                        it->value)) {
                 break;
             }
         }
@@ -112,22 +114,32 @@ struct sc::json::JsonTraits<rapidjson::Value> {
 };
 
 template <typename ErrorHandler>
-struct sc::json::JsonBuilder<rapidjson::Value, ErrorHandler> {
-    // Document 是 Value 的子类，且自带分配器；分配器随 JsonBuilder 存活，
-    // 因此返回的 Value 引用在 JsonParser 生命周期内始终有效。
-    rapidjson::Document doc_{};
+class sc::json::JsonBuilder<rapidjson::Value, ErrorHandler> {
+public:
+    JsonBuilder() = default;
 
-    const rapidjson::Value& Parse(std::string_view json, ErrorHandler& error_handler) {
+    explicit JsonBuilder(std::string_view json, ErrorHandler error_handler = {}) {
         const std::string text(json);  // rapidjson 需要 NUL 结尾的输入
         doc_.Parse(text.c_str());
         if (doc_.HasParseError()) {
-            std::runtime_error e("rapidjson parse error at offset " +
-                                 std::to_string(doc_.GetErrorOffset()));
+            std::runtime_error e(
+                    "rapidjson parse error at offset " + std::to_string(doc_.GetErrorOffset()));
             error_handler.OnJsonParseError(json, e);
             throw std::move(e);
         }
-        return doc_;
     }
+
+    JsonBuilder(const JsonBuilder&) = delete;
+    JsonBuilder(JsonBuilder&&) = delete;
+    JsonBuilder& operator=(const JsonBuilder&) = delete;
+    JsonBuilder& operator=(JsonBuilder&&) = delete;
+
+    // Document 是 Value 的子类，且自带分配器；分配器随 JsonBuilder 存活，
+    // 因此返回的 Value 引用在 JsonParser 生命周期内始终有效。
+    [[nodiscard]] const rapidjson::Value& json() const { return doc_; }
+
+private:
+    rapidjson::Document doc_;
 };
 
 #endif  //SCCOMMON_RAPIDJSON_N_H

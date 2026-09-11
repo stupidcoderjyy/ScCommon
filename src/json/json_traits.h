@@ -47,12 +47,22 @@ struct JsonTraits {
 // JsonBuilder：从 string_view 解析出 Json，并持有解析结果（含所需分配器），
 // 其生命周期随持有它的 JsonParser；解析失败时调用 ErrorHandler::OnJsonParseError。
 template <typename Json, typename ErrorHandler>
-struct JsonBuilder {
-    const Json& Parse(std::string_view json, ErrorHandler& error_handler);
+class JsonBuilder {
+public:
+    JsonBuilder() = default;
+    JsonBuilder(std::string_view json, ErrorHandler error_handler = {});
+    JsonBuilder(const JsonBuilder&) = delete;
+    JsonBuilder(JsonBuilder&&) = delete;
+    JsonBuilder& operator=(const JsonBuilder&) = delete;
+    JsonBuilder& operator=(JsonBuilder&&) = delete;
+
+    const Json& json() const { return json_; }
+
+private:
+    Json json_;
 };
 
 //NOLINTEND
-
 
 }  // namespace sc::json
 
