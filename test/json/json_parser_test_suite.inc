@@ -6,6 +6,7 @@
 #pragma once
 #include <gtest/gtest.h>
 
+#include <exception>
 #include <cstdint>
 #include <map>
 #include <string>
@@ -27,35 +28,38 @@ struct SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUITE_NAME) {
 };
 
 struct SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
-    static inline std::vector<std::string> missing;
+    static inline std::vector<std::string> resolve_errors;
     static inline std::vector<std::string> mismatch;
 
-    static void OnMissing(std::string_view path) { missing.emplace_back(path); }
+    static void OnPathResolveError(const std::exception& e) {
+        resolve_errors.emplace_back(e.what());
+    }
 
     static void OnTypeMismatch(std::string_view path) { mismatch.emplace_back(path); }
 };
 
 struct SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME) : std::runtime_error {
-    SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(std::string request_id, std::string path)
-        : std::runtime_error("JsonParser: parse error at '" + path + "'"),
+    SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(std::string request_id,
+                                                               std::string message)
+        : std::runtime_error(message),
           request_id_(std::move(request_id)),
-          path_(std::move(path)) {}
+          message_(std::move(message)) {}
 
     const std::string& RequestId() const noexcept { return request_id_; }
-    const std::string& Path() const noexcept { return path_; }
+    const std::string& Message() const noexcept { return message_; }
 
 private:
     std::string request_id_;
-    std::string path_;
+    std::string message_;
 };
 
 struct SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
     explicit SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME)(std::string request_id)
         : request_id_(std::move(request_id)) {}
 
-    void OnMissing(std::string_view path) const {
+    void OnPathResolveError(const std::exception& e) const {
         throw SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(
-                request_id_, std::string(path));
+                request_id_, e.what());
     }
 
     void OnTypeMismatch(std::string_view path) const {
@@ -385,7 +389,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, LambdaCapturingThis) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, CustomErrorHandler) {
     using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
-    ErrorHandler::missing.clear();
+    ErrorHandler::resolve_errors.clear();
     ErrorHandler::mismatch.clear();
 
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
@@ -393,8 +397,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, CustomErrorHandler) {
     bool called = false;
     parser.Parse<JsonInt, Required>("no.such.path"_path, [&](int) { called = true; });
     EXPECT_FALSE(called);
-    ASSERT_EQ(1u, ErrorHandler::missing.size());
-    EXPECT_EQ(std::string("no.such.path"), ErrorHandler::missing.front());
+    ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
+    EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.front().find("no.such.path"));
 
     parser.Parse<JsonInt, Required>("s"_path, [&](int) { called = true; });
     ASSERT_EQ(1u, ErrorHandler::mismatch.size());
@@ -419,7 +423,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, StatefulErrorHandlerCarriesExternalData) {
         FAIL() << "expected ContextException";
     } catch (const Exception& e) {
         EXPECT_EQ(std::string("req-001"), e.RequestId());
-        EXPECT_EQ(std::string("s"), e.Path());
+        EXPECT_EQ(std::string("s"), e.Message());
     }
 }
 
@@ -548,7 +552,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireUsesCustomErrorHandler) {
         FAIL() << "expected ContextException";
     } catch (const Exception& e) {
         EXPECT_EQ(std::string("req-002"), e.RequestId());
-        EXPECT_EQ(std::string("no.such.path"), e.Path());
+        EXPECT_NE(std::string::npos, e.Message().find("no.such.path"));
     }
 }
 
@@ -629,4 +633,78 @@ TEST(SC_JSON_TEST_SUITE_NAME, ConstructFromString) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ConstructFromInvalidStringThrows) {
     EXPECT_THROW((JsonParser<SC_JSON_TYPE>(std::string_view("{oops"))), std::runtime_error);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ScopeResolvesRelativePath) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    {
+        JsonScope scope(parser, "point"_path);
+        EXPECT_EQ(1u, scope.Resolved());
+        int x = 0;
+        parser.Acquire<JsonInt, Required>("x"_path, x);
+        EXPECT_EQ(10, x);
+    }
+    // 作用域结束后回到根节点
+    int y = 0;
+    parser.Acquire<JsonInt, Required>("point.y"_path, y);
+    EXPECT_EQ(20, y);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ScopeNestedScopes) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    {
+        JsonScope list_scope(parser, "obj_list"_path);
+        {
+            JsonScope item_scope(parser, "[1]"_path);
+            int id = 0;
+            parser.Acquire<JsonInt, Required>("id"_path, id);
+            EXPECT_EQ(2, id);
+        }
+        // 内层退出后仍停留在数组层
+        int first = 0;
+        parser.Acquire<JsonInt, Required>("[0].id"_path, first);
+        EXPECT_EQ(1, first);
+    }
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ScopeUnwindsOnException) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    try {
+        JsonScope scope(parser, "point"_path);
+        throw std::runtime_error("boom");
+    } catch (const std::runtime_error&) {
+    }
+    // 异常离开作用域后栈已回滚，路径重新相对根节点解析
+    int y = 0;
+    parser.Acquire<JsonInt, Required>("point.y"_path, y);
+    EXPECT_EQ(20, y);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ScopeMissingPathThrows) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    EXPECT_THROW((JsonScope(parser, "no.such"_path)), std::runtime_error);
+    // 构造失败后栈未被破坏
+    int value = 0;
+    parser.Acquire<JsonInt, Required>("a.b"_path, value);
+    EXPECT_EQ(42, value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ScopeMoveTransfersUnwind) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    {
+        JsonScope scope(parser, "point"_path);
+        JsonScope moved = std::move(scope);
+        int x = 0;
+        parser.Acquire<JsonInt, Required>("x"_path, x);
+        EXPECT_EQ(10, x);
+    }
+    // 只回滚一次，路径重新相对根节点解析
+    int y = 0;
+    parser.Acquire<JsonInt, Required>("point.y"_path, y);
+    EXPECT_EQ(20, y);
 }
