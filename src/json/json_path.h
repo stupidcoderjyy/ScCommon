@@ -6,8 +6,11 @@
 #define SCCOMMON_JSON_PATH_H
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
+#include <string>
 #include <string_view>
+#include <vector>
 
 namespace sc::json {
 
@@ -99,6 +102,64 @@ consteval auto operator""_path() {
     constexpr std::size_t N = CountParts(view);
     return MakeParts<N>(view);
 }
+
+// 路径概念：Parts<N>（编译期路径）与 RuntimePath（运行期路径）共同满足。
+template <typename Path>
+concept PathLike = requires(const Path& path, std::size_t index) {
+    { path.Size() } -> std::convertible_to<std::size_t>;
+    { path[index] } -> std::convertible_to<std::string_view>;
+};
+
+// 运行期路径：与 Parts<N> 产出相同的 token 序列（"a.b[2].c" → {"a","b","[2]","c"}）。
+// 代价：不做编译期校验；非法路径（空段、'[' 未闭合等）在解析阶段由 OnPathResolveError 报告。
+// token 由本对象持有：短 key 走 SSO 不产生堆分配。
+class RuntimePath {
+public:
+    RuntimePath() = default;
+    explicit RuntimePath(std::string_view path) { Parse(path); }
+
+    [[nodiscard]] std::size_t Size() const noexcept { return tokens_.size(); }  //NOLINT
+    [[nodiscard]] std::string_view operator[](std::size_t index) const noexcept {
+        return tokens_[index];
+    }
+    [[nodiscard]] bool Empty() const noexcept { return tokens_.empty(); }
+
+private:
+    void Parse(std::string_view path) {
+        std::size_t pos = 0;
+        while (pos < path.size()) {
+            const std::size_t dot = path.find('.', pos);
+            const std::size_t end = dot == std::string_view::npos ? path.size() : dot;
+            AppendSegment(path.substr(pos, end - pos));
+            if (dot == std::string_view::npos) {
+                break;
+            }
+            pos = dot + 1;
+        }
+    }
+
+    // 一个路径段可能同时包含 key 与若干下标："b[2][3]" → "b", "[2]", "[3]"
+    void AppendSegment(std::string_view segment) {
+        std::size_t bracket = segment.find('[');
+        if (const std::string_view key = segment.substr(0, bracket); !key.empty()) {
+            tokens_.emplace_back(key);
+        } else if (bracket == std::string_view::npos) {
+            tokens_.emplace_back(segment);  // 空段：保留空 token，解析阶段报错
+            return;
+        }
+        while (bracket != std::string_view::npos) {
+            const std::size_t close = segment.find(']', bracket + 1);
+            if (close == std::string_view::npos) {
+                tokens_.emplace_back(segment.substr(bracket));  // 未闭合：解析阶段报错
+                return;
+            }
+            tokens_.emplace_back(segment.substr(bracket, close - bracket + 1));
+            bracket = segment.find('[', close + 1);
+        }
+    }
+
+    std::vector<std::string> tokens_;
+};
 
 }  // namespace sc::json
 

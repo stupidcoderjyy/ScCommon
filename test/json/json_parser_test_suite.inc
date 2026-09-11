@@ -79,7 +79,7 @@ struct SC_JSON_CONCAT(MemberHandler_, SC_JSON_TEST_SUITE_NAME) {
 
     void process(const SC_JSON_TYPE& json) {
         JsonParser parser(json);
-        value = parser.Acquire<JsonInt, Required>("a.b"_path);
+        parser.Acquire<JsonInt, Required>("a.b"_path, value);
     }
 };
 
@@ -111,7 +111,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireNestedObject) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt, Required>("a.b"_path);
+    parser.Acquire<JsonInt, Required>("a.b"_path, value);
     EXPECT_EQ(42, value);
 }
 
@@ -119,7 +119,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireNegativeInteger) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt, Required>("neg"_path);
+    parser.Acquire<JsonInt, Required>("neg"_path, value);
     EXPECT_EQ(-7, value);
 }
 
@@ -127,7 +127,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireInt64Negative) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    value = parser.Acquire<JsonInt64, Required>("big_neg"_path);
+    parser.Acquire<JsonInt64, Required>("big_neg"_path, value);
     EXPECT_EQ(-9007199254740993LL, value);
 }
 
@@ -135,7 +135,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireInt64SmallInt) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    value = parser.Acquire<JsonInt64, Required>("a.b"_path);
+    parser.Acquire<JsonInt64, Required>("a.b"_path, value);
     EXPECT_EQ(42LL, value);
 }
 
@@ -143,7 +143,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireInt64) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    value = parser.Acquire<JsonInt64, Required>("big"_path);
+    parser.Acquire<JsonInt64, Required>("big"_path, value);
     EXPECT_EQ(9007199254740993LL, value);
 }
 
@@ -151,8 +151,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, Int64TypeMismatchThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::int64_t value = 0;
-    EXPECT_THROW(((parser.Acquire<JsonInt64, Required>("d"_path))), std::runtime_error);
-    EXPECT_THROW(((parser.Acquire<JsonInt64, Required>("s"_path))), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt64, Required>("d"_path, value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt64, Required>("s"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, IntLosslessRangeChecks) {
@@ -160,15 +160,15 @@ TEST(SC_JSON_TEST_SUITE_NAME, IntLosslessRangeChecks) {
     JsonParser parser(json);
     int value = 0;
     // 超出 int32 范围（上下界）的整数值不能无损转 int，必须按类型不匹配处理。
-    EXPECT_THROW(((parser.Acquire<JsonInt, Required>("big"_path))), std::runtime_error);
-    EXPECT_THROW(((parser.Acquire<JsonInt, Required>("big_neg"_path))), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("big"_path, value)), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("big_neg"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireString) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::string value;
-    value = parser.Acquire<JsonString, Required>("s"_path);
+    parser.Acquire<JsonString, Required>("s"_path, value);
     EXPECT_EQ(std::string("hello"), value);
 }
 
@@ -176,7 +176,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireDouble) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     double value = 0.0;
-    value = parser.Acquire<JsonDouble, Required>("d"_path);
+    parser.Acquire<JsonDouble, Required>("d"_path, value);
     EXPECT_DOUBLE_EQ(3.14, value);
 }
 
@@ -184,7 +184,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireBool) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     bool value = false;
-    value = parser.Acquire<JsonBool, Required>("flag"_path);
+    parser.Acquire<JsonBool, Required>("flag"_path, value);
     EXPECT_TRUE(value);
 }
 
@@ -192,7 +192,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayIndex) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt, Required>("list[1]"_path);
+    parser.Acquire<JsonInt, Required>("list[1]"_path, value);
     EXPECT_EQ(2, value);
 }
 
@@ -200,7 +200,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireNestedArrayIndex) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt, Required>("obj_list[1].id"_path);
+    parser.Acquire<JsonInt, Required>("obj_list[1].id"_path, value);
     EXPECT_EQ(2, value);
 }
 
@@ -208,16 +208,20 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireEmptyPathUsesRoot) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON_LEAF();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt, Required>(""_path);
+    parser.Acquire<JsonInt, Required>(""_path, value);
     EXPECT_EQ(42, value);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireChainedCalls) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    const int intValue = parser.Acquire<JsonInt, Required>("a.b"_path);
-    const std::string stringValue = parser.Acquire<JsonString, Required>("s"_path);
-    const bool boolValue = parser.Acquire<JsonBool, Required>("flag"_path);
+    int intValue = 0;
+    std::string stringValue;
+    bool boolValue = false;
+    JsonParser<SC_JSON_TYPE>& ref = parser.Acquire<JsonInt, Required>("a.b"_path, intValue)
+                                            .Acquire<JsonString, Required>("s"_path, stringValue)
+                                            .Acquire<JsonBool, Required>("flag"_path, boolValue);
+    EXPECT_EQ(&ref, &parser);
     EXPECT_EQ(42, intValue);
     EXPECT_EQ(std::string("hello"), stringValue);
     EXPECT_TRUE(boolValue);
@@ -227,7 +231,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OptionalArrayIndexOutOfRangeWritesDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = -1;
-    value = parser.Acquire<JsonInt, Optional>("list[9]"_path);
+    parser.Acquire<JsonInt, Optional>("list[9]"_path, value);
     EXPECT_EQ(0, value);
 }
 
@@ -235,14 +239,14 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayIndexOutOfRangeThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    EXPECT_THROW(((parser.Acquire<JsonInt, Required>("list[9]"_path))), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("list[9]"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireTraversalTypeMismatchThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    EXPECT_THROW(((parser.Acquire<JsonInt, Required>("list.b"_path))), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("list.b"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewArrayZeroCopy) {
@@ -256,11 +260,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewArrayZeroCopy) {
     // 元素零拷贝：直接指向底层 Json 节点
     EXPECT_EQ(&second.json(), &JsonTraits<SC_JSON_TYPE>::GetArrayElement(*listNode, 1));
     int value = 0;
-    value = second.Acquire<JsonInt>(""_path);
+    second.Acquire<JsonInt>(""_path, value);
     EXPECT_EQ(2, value);
     // 也可以基于该节点构造子解析器
     JsonParser sub(second.json());
-    value = sub.Acquire<JsonInt, Required>(""_path);
+    sub.Acquire<JsonInt, Required>(""_path, value);
     EXPECT_EQ(2, value);
 }
 
@@ -269,8 +273,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, CustomExtractor) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     Point point;
-    point = parser.Acquire<SC_JSON_CONCAT(PointExtractor_, SC_JSON_TEST_SUITE_NAME), Required>(
-            "point"_path);
+    parser.Acquire<SC_JSON_CONCAT(PointExtractor_, SC_JSON_TEST_SUITE_NAME), Required>("point"_path, point);
     EXPECT_EQ(10, point.x);
     EXPECT_EQ(20, point.y);
 }
@@ -291,19 +294,21 @@ TEST(SC_JSON_TEST_SUITE_NAME, CustomErrorHandler) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
     int value = -1;
-    // 路径解析失败 → OnPathResolveError；handler 返回时 out 保持不变
-    value = parser.Acquire<JsonInt, Required>("no.such.path"_path, -1);
+    // 路径解析失败 → OnPathResolveError；handler 返回时 out 写入默认值
+    parser.Acquire<JsonInt, Required>("no.such.path"_path, value, -1);
     EXPECT_EQ(-1, value);
     ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
-    EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.front().find("no.such.path"));
+    // 错误消息中的路径不得带前导点
+    EXPECT_NE(std::string::npos,
+              ErrorHandler::resolve_errors.front().find("path 'no.such.path'"));
 
     // 节点存在但类型不符 → OnTypeMismatch
-    value = parser.Acquire<JsonInt, Required>("s"_path, -1);
+    parser.Acquire<JsonInt, Required>("s"_path, value, -1);
     EXPECT_EQ(-1, value);
     ASSERT_EQ(1u, ErrorHandler::mismatch.size());
     EXPECT_EQ(std::string("s"), ErrorHandler::mismatch.front());
 
-    value = parser.Acquire<JsonInt, Required>("a.b"_path);
+    parser.Acquire<JsonInt, Required>("a.b"_path, value);
     EXPECT_EQ(42, value);
 }
 
@@ -315,10 +320,10 @@ TEST(SC_JSON_TEST_SUITE_NAME, StatefulErrorHandlerCarriesExternalData) {
     JsonParser<SC_JSON_TYPE, Handler> parser(json, Handler("req-001"));
 
     int value = 0;
-    EXPECT_THROW(((parser.Acquire<JsonInt, Required>("no.such.path"_path))), Exception);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("no.such.path"_path, value)), Exception);
 
     try {
-        value = parser.Acquire<JsonInt, Required>("s"_path);
+        parser.Acquire<JsonInt, Required>("s"_path, value);
         FAIL() << "expected ContextException";
     } catch (const Exception& e) {
         EXPECT_EQ(std::string("req-001"), e.RequestId());
@@ -337,7 +342,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewRequiredObject) {
     EXPECT_EQ(42, JsonTraits<SC_JSON_TYPE>::GetInt(*b));
     // 相对 view 解析
     int value = 0;
-    value = view.Acquire<JsonInt>("b"_path);
+    view.Acquire<JsonInt>("b"_path, value);
     EXPECT_EQ(42, value);
 }
 
@@ -345,7 +350,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireAssignsValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt, Required>("a.b"_path);
+    parser.Acquire<JsonInt, Required>("a.b"_path, value);
     EXPECT_EQ(42, value);
 }
 
@@ -353,21 +358,21 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireRequiredMissingThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    EXPECT_THROW(((parser.Acquire<JsonInt, Required>("no.such.path"_path))), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("no.such.path"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireRequiredTypeMismatchThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    EXPECT_THROW(((parser.Acquire<JsonInt, Required>("s"_path))), std::runtime_error);
+    EXPECT_THROW((parser.Acquire<JsonInt, Required>("s"_path, value)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalMissingAssignsDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 123;
-    value = parser.Acquire<JsonInt>("no.such.path"_path);
+    parser.Acquire<JsonInt>("no.such.path"_path, value);
     EXPECT_EQ(0, value);
 }
 
@@ -375,7 +380,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalTypeMismatchAssignsDefault) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 123;
-    value = parser.Acquire<JsonInt>("s"_path);
+    parser.Acquire<JsonInt>("s"_path, value);
     EXPECT_EQ(0, value);
 }
 
@@ -383,7 +388,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalUsesDefaultValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt>("no.such.path"_path, 42);
+    parser.Acquire<JsonInt>("no.such.path"_path, value, 42);
     EXPECT_EQ(42, value);
 }
 
@@ -391,7 +396,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalTypeMismatchUsesDefaultValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt>("s"_path, 42);
+    parser.Acquire<JsonInt>("s"_path, value, 42);
     EXPECT_EQ(42, value);
 }
 
@@ -399,23 +404,27 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireDefaultValuePresentUsesActual) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     int value = 0;
-    value = parser.Acquire<JsonInt>("a.b"_path, 7);
+    parser.Acquire<JsonInt>("a.b"_path, value, 7);
     EXPECT_EQ(42, value);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireOptionalStringUsesDefaultValue) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    std::string value = parser.Acquire<JsonString>("missing"_path, std::string("unknown"));
+    std::string value;
+    parser.Acquire<JsonString>("missing"_path, value, std::string("unknown"));
     EXPECT_EQ(std::string("unknown"), value);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireMultipleFields) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
-    const int intValue = parser.Acquire<JsonInt, Required>("a.b"_path);
-    const std::string stringValue = parser.Acquire<JsonString, Required>("s"_path);
-    const bool boolValue = parser.Acquire<JsonBool, Required>("flag"_path);
+    int intValue = 0;
+    std::string stringValue;
+    bool boolValue = false;
+    parser.Acquire<JsonInt, Required>("a.b"_path, intValue);
+    parser.Acquire<JsonString, Required>("s"_path, stringValue);
+    parser.Acquire<JsonBool, Required>("flag"_path, boolValue);
     EXPECT_EQ(42, intValue);
     EXPECT_EQ(std::string("hello"), stringValue);
     EXPECT_TRUE(boolValue);
@@ -429,7 +438,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireUsesCustomErrorHandler) {
     JsonParser<SC_JSON_TYPE, Handler> parser(json, Handler("req-002"));
     int value = 0;
     try {
-        value = parser.Acquire<JsonInt, Required>("no.such.path"_path);
+        parser.Acquire<JsonInt, Required>("no.such.path"_path, value);
         FAIL() << "expected ContextException";
     } catch (const Exception& e) {
         EXPECT_EQ(std::string("req-002"), e.RequestId());
@@ -441,7 +450,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayInts) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::vector<int> arr;
-    arr = parser.AcquireArray<JsonInt, Required>("list"_path);
+    parser.AcquireArray<JsonInt, Required>("list"_path, arr);
     ASSERT_EQ(3u, arr.size());
     EXPECT_EQ(1, arr[0]);
     EXPECT_EQ(2, arr[1]);
@@ -452,7 +461,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayMissingOptional) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::vector<int> arr = {9};
-    arr = parser.AcquireArray<JsonInt>("no.such.path"_path);
+    parser.AcquireArray<JsonInt>("no.such.path"_path, arr);
     EXPECT_TRUE(arr.empty());
 }
 
@@ -460,7 +469,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayMissingRequiredThrows) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::vector<int> arr;
-    EXPECT_THROW(((parser.AcquireArray<JsonInt, Required>("no.such.path"_path))), std::runtime_error);
+    EXPECT_THROW((parser.AcquireArray<JsonInt, Required>("no.such.path"_path, arr)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayElementMismatchPath) {
@@ -470,7 +479,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireArrayElementMismatchPath) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
     std::vector<int> arr;
-    arr = parser.AcquireArray<JsonInt, Required>("obj_list"_path);
+    parser.AcquireArray<JsonInt, Required>("obj_list"_path, arr);
     ASSERT_EQ(1u, ErrorHandler::mismatch.size());
     EXPECT_EQ(std::string("obj_list[0]"), ErrorHandler::mismatch.front());
 }
@@ -479,7 +488,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapInts) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::map<std::string, int> map;
-    map = parser.AcquireMap<JsonInt, Required>("a"_path);
+    parser.AcquireMap<JsonInt, Required>("a"_path, map);
     ASSERT_EQ(1u, map.size());
     EXPECT_EQ(42, map["b"]);
 }
@@ -488,7 +497,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapMissingOptional) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser parser(json);
     std::map<std::string, int> map;
-    map = parser.AcquireMap<JsonInt>("no.such.path"_path);
+    parser.AcquireMap<JsonInt>("no.such.path"_path, map);
     EXPECT_TRUE(map.empty());
 }
 
@@ -499,7 +508,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapValueMismatchPath) {
     const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
     JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
     std::map<std::string, std::string> map;
-    map = parser.AcquireMap<JsonString, Required>("a"_path);
+    parser.AcquireMap<JsonString, Required>("a"_path, map);
     ASSERT_EQ(1u, ErrorHandler::mismatch.size());
     EXPECT_EQ(std::string("a.b"), ErrorHandler::mismatch.front());
 }
@@ -507,7 +516,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireMapValueMismatchPath) {
 TEST(SC_JSON_TEST_SUITE_NAME, ConstructFromString) {
     JsonParser<SC_JSON_TYPE> parser(std::string_view(R"({"a":{"b":42}})"));
     int value = 0;
-    value = parser.Acquire<JsonInt, Required>("a.b"_path);
+    parser.Acquire<JsonInt, Required>("a.b"_path, value);
     EXPECT_EQ(42, value);
 }
 
@@ -521,11 +530,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewRequiredResolvesRelativePath) {
     auto point = parser.View<Required>("point"_path);
     EXPECT_TRUE(point.valid());
     int x = 0;
-    x = point.Acquire<JsonInt>("x"_path);
+    point.Acquire<JsonInt>("x"_path, x);
     EXPECT_EQ(10, x);
     // parser 是无状态的：路径仍相对根节点解析
     int y = 0;
-    y = parser.Acquire<JsonInt, Required>("point.y"_path);
+    parser.Acquire<JsonInt, Required>("point.y"_path, y);
     EXPECT_EQ(20, y);
 }
 
@@ -535,11 +544,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewNestedRelativePaths) {
     auto list = parser.View<Required>("obj_list"_path);
     auto second = list.View<Required>("[1]"_path);
     int id = 0;
-    id = second.Acquire<JsonInt>("id"_path);
+    second.Acquire<JsonInt>("id"_path, id);
     EXPECT_EQ(2, id);
     // 兄弟 view 互不影响（无需 RAII 回滚）
     auto first = list.View<Required>("[0]"_path);
-    id = first.Acquire<JsonInt>("id"_path);
+    first.Acquire<JsonInt>("id"_path, id);
     EXPECT_EQ(1, id);
 }
 
@@ -569,7 +578,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewValidOnExistingPath) {
     EXPECT_TRUE(static_cast<bool>(view));
     EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsObject(view.json()));
     int x = 0;
-    x = view.Acquire<JsonInt>("x"_path);
+    view.Acquire<JsonInt>("x"_path, x);
     EXPECT_EQ(10, x);
 }
 
@@ -586,11 +595,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, AcquireOnInvalidViewWritesDefault) {
     JsonParser parser(json);
     auto invalid = parser.View("no.such.path"_path);
     int optional_value = 7;
-    optional_value = invalid.Acquire<JsonInt>("a.b"_path);
+    invalid.Acquire<JsonInt>("a.b"_path, optional_value);
     EXPECT_EQ(0, optional_value);
     // Required 在无效 view 上同样不抛异常，写默认值
     int required_value = 7;
-    required_value = invalid.Acquire<JsonInt, Required>("a.b"_path);
+    invalid.Acquire<JsonInt, Required>("a.b"_path, required_value);
     EXPECT_EQ(0, required_value);
 }
 
@@ -607,7 +616,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewNestedAndEmptyPath) {
     auto b = a.View("b"_path);
     EXPECT_TRUE(b.valid());
     int value = 0;
-    value = b.Acquire<JsonInt>(""_path);  // 空路径 = 当前节点
+    b.Acquire<JsonInt>(""_path, value);  // 空路径 = 当前节点
     EXPECT_EQ(42, value);
 }
 
@@ -630,7 +639,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewArrayIterateAll) {
     std::vector<int> values;
     for (auto&& element : range) {
         int value = 0;
-        value = element.Acquire<JsonInt>(""_path);
+        element.Acquire<JsonInt>(""_path, value);
         values.push_back(value);
     }
     EXPECT_EQ((std::vector<int>{1, 2, 3}), values);
@@ -665,7 +674,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewArrayComposeWithRanges) {
     std::vector<int> ids;
     auto id_view = parser.ViewArray("obj_list"_path) | std::views::transform([](auto&& element) {
                        int id = 0;
-                       id = element.template Acquire<JsonInt>("id"_path);
+                       element.Acquire("id"_path, id);  // 由 out 类型推导，无需 .template
                        return id;
                    });
     for (int id : id_view) {
@@ -676,12 +685,12 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewArrayComposeWithRanges) {
     int matched = 0;
     auto filtered = parser.ViewArray("obj_list"_path) | std::views::filter([](auto&& element) {
                         int id = 0;
-                        id = element.template Acquire<JsonInt>("id"_path);
+                        element.Acquire("id"_path, id);  // 同上
                         return id == 2;
                     });
     for (auto&& element : filtered) {
         int id = 0;
-        id = element.Acquire<JsonInt>("id"_path);
+        element.Acquire<JsonInt>("id"_path, id);
         EXPECT_EQ(2, id);
         ++matched;
     }
@@ -694,7 +703,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewObjectStructuredBinding) {
     std::map<std::string, int> values;
     for (auto&& [key, value] : parser.ViewObject("point"_path)) {
         int number = 0;
-        number = value.Acquire<JsonInt>(""_path);
+        value.Acquire<JsonInt>(""_path, number);
         values.emplace(std::string(key), number);
     }
     EXPECT_EQ(2u, values.size());
@@ -710,4 +719,210 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewObjectEmptyAndRequired) {
     EXPECT_EQ(range.begin(), range.end());
     EXPECT_THROW((void)parser.ViewObject<Required>("no.such"_path), std::runtime_error);
     EXPECT_THROW((void)parser.ViewObject<Required>("list"_path), std::runtime_error);
+}
+
+// ---------------- 运行期路径（RuntimePath）----------------
+
+TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathResolvesDynamicPath) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    const std::string prefix = "a";
+    const RuntimePath path(prefix + ".b");  // 运行期拼接的路径
+
+    int value = 0;
+    parser.Acquire(path, value);  // 推导写法
+    EXPECT_EQ(42, value);
+
+    int explicit_value = 0;
+    parser.Acquire<JsonInt, Required>(path, explicit_value);  // 显式提取器写法
+    EXPECT_EQ(42, explicit_value);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathTokenizesLikeCompileTime) {
+    const RuntimePath path("obj_list[1].id");
+    // 与 "obj_list[1].id"_path 产出同样的 token 序列
+    ASSERT_EQ(3u, path.Size());
+    EXPECT_EQ(std::string_view("obj_list"), path[0]);
+    EXPECT_EQ(std::string_view("[1]"), path[1]);
+    EXPECT_EQ(std::string_view("id"), path[2]);
+    EXPECT_FALSE(path.Empty());
+
+    // 纯下标开头 / 连续下标：与编译期 token 化规则一致
+    const RuntimePath indexed("[0].a");
+    ASSERT_EQ(2u, indexed.Size());
+    EXPECT_EQ(std::string_view("[0]"), indexed[0]);
+    const RuntimePath consecutive("a[0][1]");
+    ASSERT_EQ(3u, consecutive.Size());
+    EXPECT_EQ(std::string_view("a"), consecutive[0]);
+    EXPECT_EQ(std::string_view("[0]"), consecutive[1]);
+    EXPECT_EQ(std::string_view("[1]"), consecutive[2]);
+
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    int id = 0;
+    parser.Acquire(path, id);
+    EXPECT_EQ(2, id);
+    EXPECT_TRUE(parser.View<Required>(path).valid());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathInvalidReportedByOnPathResolveError) {
+    using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+    ErrorHandler::resolve_errors.clear();
+
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser<SC_JSON_TYPE, ErrorHandler> parser(json);
+
+    // 编译期字面量会直接编译失败；运行期路径改由 OnPathResolveError 报告
+    const RuntimePath empty_segment("a..b");
+    int value = 0;
+    parser.Acquire<JsonInt, Required>(empty_segment, value, -1);
+    EXPECT_EQ(-1, value);
+    ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
+    EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.front().find("path 'a..b'"));
+
+    // '[' 未闭合：同样交给 OnPathResolveError（记录型 handler 返回后写默认值）
+    const RuntimePath unclosed("a[1");
+    int required_value = 0;
+    parser.Acquire<JsonInt, Required>(unclosed, required_value);
+    EXPECT_EQ(0, required_value);
+    ASSERT_EQ(2u, ErrorHandler::resolve_errors.size());
+    EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.back().find("path 'a[1'"));
+
+    // 默认 handler 下同样报错（抛异常）
+    JsonParser<SC_JSON_TYPE> strict(json);
+    int throwing_value = 0;
+    EXPECT_THROW((strict.Acquire<JsonInt, Required>(unclosed, throwing_value)), std::runtime_error);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathArrayAndMap) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+
+    const RuntimePath list_path(std::string("list"));
+    std::vector<int> nums;
+    parser.AcquireArray(list_path, nums);
+    EXPECT_EQ((std::vector<int>{1, 2, 3}), nums);
+
+    const RuntimePath point_path(std::string("point"));
+    std::map<std::string, int> point;
+    parser.AcquireMap(point_path, point);
+    ASSERT_EQ(2u, point.size());
+    EXPECT_EQ(10, point["x"]);
+    EXPECT_EQ(20, point["y"]);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathOnViewIsRelative) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    auto point = parser.View<Required>("point"_path);
+
+    const RuntimePath inner(std::string("x"));  // 相对 view 的当前节点
+    int x = 0;
+    point.Acquire(inner, x);
+    EXPECT_EQ(10, x);
+}
+
+// ---------------- JsonTraits 操作（JsonParser / JsonView 同构）----------------
+
+namespace {
+
+// 编译期检查：JsonTraits 的全部操作在 Source（JsonParser 或 JsonView）上都可用
+template <typename Source>
+bool TraitsOpsAvailable(const Source& source) {
+    static_assert(requires { source.IsObject(); });
+    static_assert(requires { source.IsArray(); });
+    static_assert(requires { source.IsInt(); });
+    static_assert(requires { source.IsUint(); });
+    static_assert(requires { source.IsInt64(); });
+    static_assert(requires { source.IsUint64(); });
+    static_assert(requires { source.IsDouble(); });
+    static_assert(requires { source.IsString(); });
+    static_assert(requires { source.IsBool(); });
+    static_assert(requires { source.TryGetChild(std::string_view{}); });
+    static_assert(requires { source.GetArraySize(); });
+    static_assert(requires { source.GetArrayElement(std::size_t{}); });
+    static_assert(requires { source.MemberBegin(); });
+    static_assert(requires { source.MemberEnd(); });
+    static_assert(requires { source.GetInt(); });
+    static_assert(requires { source.GetUint(); });
+    static_assert(requires { source.GetInt64(); });
+    static_assert(requires { source.GetUint64(); });
+    static_assert(requires { source.GetDouble(); });
+    static_assert(requires { source.GetString(); });
+    static_assert(requires { source.GetBool(); });
+    return true;
+}
+
+}  // namespace
+
+TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsAreSymmetric) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    auto view = parser.View<Required>("point"_path);
+    // 同一份检查代码对 parser 与 view 都成立
+    EXPECT_TRUE(TraitsOpsAvailable(parser));
+    EXPECT_TRUE(TraitsOpsAvailable(view));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnParserAndView) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+
+    // 根节点：对象
+    EXPECT_TRUE(parser.IsObject());
+    EXPECT_FALSE(parser.IsArray());
+    EXPECT_FALSE(parser.IsString());
+
+    // 子节点访问（不再需要 JsonTraits<Json>::TryGetChild(parser.json(), "a")）
+    const SC_JSON_TYPE* a = parser.TryGetChild("a");
+    ASSERT_NE(nullptr, a);
+    EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsObject(*a));
+    EXPECT_EQ(nullptr, parser.TryGetChild("no.such"));
+
+    // 成员遍历
+    std::size_t members = 0;
+    for (auto it = parser.MemberBegin(); it != parser.MemberEnd(); ++it) {
+        ++members;
+    }
+    EXPECT_GT(members, 0u);
+
+    // view 上的同类操作（相对当前节点）
+    auto point = parser.View<Required>("point"_path);
+    EXPECT_TRUE(point.IsObject());
+    const SC_JSON_TYPE* x = point.TryGetChild("x");
+    ASSERT_NE(nullptr, x);
+    EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsInt(*x));
+
+    // 标量读取：Is* + Get*
+    EXPECT_EQ(42, parser.View<Required>("a.b"_path).GetInt());
+    EXPECT_EQ(9007199254740993LL, parser.View<Required>("big"_path).GetInt64());
+    EXPECT_TRUE(parser.View<Required>("flag"_path).GetBool());
+    EXPECT_DOUBLE_EQ(3.14, parser.View<Required>("d"_path).GetDouble());
+    EXPECT_EQ(std::string("hello"), parser.View<Required>("s"_path).GetString());
+
+    // 数组：尺寸与元素
+    auto list = parser.View<Required>("list"_path);
+    EXPECT_TRUE(list.IsArray());
+    EXPECT_EQ(3u, list.GetArraySize());
+    EXPECT_EQ(2, JsonTraits<SC_JSON_TYPE>::GetInt(list.GetArrayElement(1)));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnInvalidViewAreSafe) {
+    const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+    JsonParser parser(json);
+    auto invalid = parser.View("no.such"_path);
+    EXPECT_FALSE(invalid.valid());
+
+    EXPECT_FALSE(invalid.IsObject());
+    EXPECT_FALSE(invalid.IsArray());
+    EXPECT_FALSE(invalid.IsInt());
+    EXPECT_EQ(nullptr, invalid.TryGetChild("a"));
+    EXPECT_EQ(0u, invalid.GetArraySize());
+    EXPECT_EQ(0, invalid.GetInt());
+    EXPECT_EQ(0.0, invalid.GetDouble());
+    EXPECT_TRUE(invalid.GetString().empty());
+    EXPECT_FALSE(invalid.GetBool());
+    EXPECT_EQ(invalid.MemberBegin(), invalid.MemberEnd());
+    // GetArrayElement：返回静态空节点，不会解引用空指针
+    EXPECT_FALSE(JsonTraits<SC_JSON_TYPE>::IsObject(invalid.GetArrayElement(0)));
 }

@@ -47,39 +47,41 @@ inline void AppendNumber(std::string& out, std::size_t value) {
     }
 }
 
-// 把编译期路径还原成 "a.b[2].c" 形式并追加到 out。
-template <std::size_t n>
-void AppendPath(std::string& out, const Parts<n>& parts) {
-    for (std::size_t i = 0; i < parts.Size(); ++i) {
-        const std::string_view token = parts[i];
-        if (const bool is_index = !token.empty() && token.front() == '[';
-                !is_index && !out.empty()) {
+// 把路径还原成 "a.b[2].c" 形式并追加到 out（Parts<N> 与 RuntimePath 通用）。
+template <PathLike Path>
+void AppendPath(std::string& out, const Path& path) {
+    bool first = true;
+    for (std::size_t i = 0; i < path.Size(); ++i) {
+        const std::string_view token = path[i];
+        // 注意：不能以 out.empty() 判断是否是第一段——out 可能已带有消息前缀
+        if (const bool is_index = !token.empty() && token.front() == '['; !is_index && !first) {
             out += '.';
         }
         out += token;
+        first = false;
     }
 }
 
-template <std::size_t n>
-std::string PathString(const Parts<n>& parts) {
+template <PathLike Path>
+std::string PathString(const Path& path) {
     std::string out;
-    AppendPath(out, parts);
+    AppendPath(out, path);
     return out;
 }
 
 // 失败信息一次成串（预留容量 + 追加），避免多次临时字符串分配。
-template <std::size_t n>
-std::string ResolveErrorMessage(const Parts<n>& parts, std::size_t actual, std::string_view token) {
+template <PathLike Path>
+std::string ResolveErrorMessage(const Path& path, std::size_t actual, std::string_view token) {
     std::string out;
-    out.reserve(64 + parts.Size() * 8 + token.size());
+    out.reserve(64 + path.Size() * 8 + token.size());
     out += "JsonParser: cannot resolve path '";
-    AppendPath(out, parts);
+    AppendPath(out, path);
     out += "' at segment '";
     out.append(token);
     out += "' (resolved ";
     AppendNumber(out, actual);
     out += " of ";
-    AppendNumber(out, parts.Size());
+    AppendNumber(out, path.Size());
     out += " segments)";
     return out;
 }

@@ -49,6 +49,8 @@ install(FILES
         json_path.h
         json_detail.h
         json_error.h
+        json_access_mixin.h
+        json_traits_mixin.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
 )
 install(DIRECTORY traits view

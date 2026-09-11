@@ -95,9 +95,9 @@ private:
 };
 
 template <typename Json, typename ErrorHandler>
-template <typename ExistencePolicy, std::size_t n>
-JsonArrayView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewArray(
-        const Parts<n>& path) const {
+template <typename ExistencePolicy, typename Path>
+    requires PathLike<Path>
+JsonArrayView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewArray(const Path& path) const {
     static_assert(
             std::is_same_v<ExistencePolicy, Required> || std::is_same_v<ExistencePolicy, Optional>,
             "JsonView: unsupported ExistencePolicy");
