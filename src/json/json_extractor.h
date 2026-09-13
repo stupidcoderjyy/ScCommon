@@ -5,20 +5,20 @@
 #ifndef SCCOMMON_JSON_EXTRACTOR_N_H
 #define SCCOMMON_JSON_EXTRACTOR_N_H
 
-#include "json_traits.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
 
+#include "json_traits.h"
+
 namespace sc::json {
 
 template <typename Json, typename T>
 struct Extractor {
-    using ValueType = T;
-    static bool Extract(const Json& json, T& val);
+  using ValueType = T;
+  static bool Extract(const Json& json, T& val);
 };
 
 template <typename Json, typename T>
@@ -41,31 +41,31 @@ using JsonBool = JsonElement<Json, bool>;
 
 template <typename Json, typename T>
 bool Extractor<Json, T>::Extract(const Json& json, T& val) {
-    if constexpr (std::is_same_v<T, int>) {
-        if (!JsonTraits<Json>::IsInt(json)) return false;
-        val = JsonTraits<Json>::GetInt(json);
-    } else if constexpr (std::is_same_v<T, unsigned int>) {
-        if (!JsonTraits<Json>::IsUint(json)) return false;
-        val = JsonTraits<Json>::GetUint(json);
-    } else if constexpr (std::is_same_v<T, std::int64_t>) {
-        if (!JsonTraits<Json>::IsInt64(json)) return false;
-        val = JsonTraits<Json>::GetInt64(json);
-    } else if constexpr (std::is_same_v<T, std::uint64_t>) {
-        if (!JsonTraits<Json>::IsUint64(json)) return false;
-        val = JsonTraits<Json>::GetUint64(json);
-    } else if constexpr (std::is_same_v<T, double>) {
-        if (!JsonTraits<Json>::IsDouble(json)) return false;
-        val = JsonTraits<Json>::GetDouble(json);
-    } else if constexpr (std::is_same_v<T, std::string>) {
-        if (!JsonTraits<Json>::IsString(json)) return false;
-        val = JsonTraits<Json>::GetString(json);
-    } else if constexpr (std::is_same_v<T, bool>) {
-        if (!JsonTraits<Json>::IsBool(json)) return false;
-        val = JsonTraits<Json>::GetBool(json);
-    } else {
-        throw std::runtime_error("Unsupported json type");
-    }
-    return true;
+  if constexpr (std::is_same_v<T, int>) {
+    if (!JsonTraits<Json>::IsInt(json)) return false;
+    val = JsonTraits<Json>::GetInt(json);
+  } else if constexpr (std::is_same_v<T, unsigned int>) {
+    if (!JsonTraits<Json>::IsUint(json)) return false;
+    val = JsonTraits<Json>::GetUint(json);
+  } else if constexpr (std::is_same_v<T, std::int64_t>) {
+    if (!JsonTraits<Json>::IsInt64(json)) return false;
+    val = JsonTraits<Json>::GetInt64(json);
+  } else if constexpr (std::is_same_v<T, std::uint64_t>) {
+    if (!JsonTraits<Json>::IsUint64(json)) return false;
+    val = JsonTraits<Json>::GetUint64(json);
+  } else if constexpr (std::is_same_v<T, double>) {
+    if (!JsonTraits<Json>::IsDouble(json)) return false;
+    val = JsonTraits<Json>::GetDouble(json);
+  } else if constexpr (std::is_same_v<T, std::string>) {
+    if (!JsonTraits<Json>::IsString(json)) return false;
+    val = JsonTraits<Json>::GetString(json);
+  } else if constexpr (std::is_same_v<T, bool>) {
+    if (!JsonTraits<Json>::IsBool(json)) return false;
+    val = JsonTraits<Json>::GetBool(json);
+  } else {
+    throw std::runtime_error("Unsupported json type");
+  }
+  return true;
 }
 
 }  // namespace sc::json
