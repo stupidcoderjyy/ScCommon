@@ -1,5 +1,5 @@
 //
-// Created by jiangyuyun3 on 2026/9/11.
+// Created by jiangyuyun3 on 2026/9/14.
 //
 
 #ifndef SCCOMMON_JSON_DETAIL_H
@@ -10,8 +10,8 @@
 #include <string>
 #include <string_view>
 
-#include "json_path.h"
-#include "json_traits.h"
+#include "../json_path.h"
+#include "../json_traits.h"
 
 namespace sc::json::detail {
 
@@ -22,24 +22,25 @@ const Json* Step(const Json* node, std::string_view token) {
   if (!node || token.empty()) {
     return nullptr;
   }
-  if (token.front() == '[') {
-    if (token.size() < 2 || token.back() != ']') {
-      return nullptr;
-    }
-    const std::string_view digits = token.substr(1, token.size() - 2);
-    std::size_t index = 0;
-    if (auto [ptr, ec] = std::from_chars(digits.data(),
-                                         digits.data() + digits.size(), index);
-        ec != std::errc() || ptr != digits.data() + digits.size()) {
-      return nullptr;
-    }
-    if (!JsonTraits<Json>::IsArray(*node) ||
-        index >= JsonTraits<Json>::GetArraySize(*node)) {
-      return nullptr;
-    }
-    return &JsonTraits<Json>::GetArrayElement(*node, index);
+  if (token.front() != '[') {
+    return JsonTraits<Json>::TryGetChild(*node, token);
   }
-  return JsonTraits<Json>::TryGetChild(*node, token);
+
+  if (token.size() < 2 || token.back() != ']') {
+    return nullptr;
+  }
+  const std::string_view digits = token.substr(1, token.size() - 2);
+  std::size_t index = 0;
+  if (auto [ptr, ec] =
+          std::from_chars(digits.data(), digits.data() + digits.size(), index);
+      ec != std::errc() || ptr != digits.data() + digits.size()) {
+    return nullptr;
+  }
+  if (!JsonTraits<Json>::IsArray(*node) ||
+      index >= JsonTraits<Json>::GetArraySize(*node)) {
+    return nullptr;
+  }
+  return &JsonTraits<Json>::GetArrayElement(*node, index);
 }
 
 inline void AppendNumber(std::string& out, std::size_t value) {

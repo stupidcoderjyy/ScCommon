@@ -1,5 +1,5 @@
 //
-// Created by jiangyuyun3 on 2026/9/11.
+// Created by PC on 2026/9/14.
 //
 
 #ifndef SCCOMMON_JSON_ERROR_H
@@ -12,12 +12,7 @@
 
 namespace sc::json {
 
-// 错误处理协议：
-//   OnPathResolveError —— 路径解析失败（缺失
-//   key、下标越界、路径中途类型不符等） OnTypeMismatch     ——
-//   路径解析成功，但节点无法转换为目标类型 OnJsonParseError   —— 字符串构造
-//   JsonParser 时 JSON 文本本身非法
-struct DefaultJsonParserErrorHandler {
+struct DefaultJsonErrorHandler {
   static void OnPathResolveError(const std::exception& e) {
     throw std::runtime_error(e.what());
   }

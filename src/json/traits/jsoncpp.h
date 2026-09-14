@@ -1,9 +1,9 @@
 //
-// Created by PC on 2026/8/30.
+// Created by PC on 2026/9/13.
 //
 
-#ifndef SCCOMMON_JSON_TRAITS_JSONCPP_H
-#define SCCOMMON_JSON_TRAITS_JSONCPP_H
+#ifndef SCCOMMON_JSONCPP_H
+#define SCCOMMON_JSONCPP_H
 
 #include <json/json.h>
 
@@ -19,7 +19,7 @@
 #include "../json_traits.h"
 
 namespace sc::json {
-// JsonCpp 适配：JsonType = Json::Value。
+
 template <>
 struct JsonTraits<Json::Value> {
   using Json = Json::Value;
@@ -34,28 +34,33 @@ struct JsonTraits<Json::Value> {
   static bool IsString(const Json& json) { return json.isString(); }
   static bool IsBool(const Json& json) { return json.isBool(); }
 
+  static int GetInt(const Json& json) { return json.asInt(); }
+  static unsigned int GetUint(const Json& json) { return json.asUInt(); }
+  static std::int64_t GetInt64(const Json& json) { return json.asInt64(); }
+  static std::uint64_t GetUint64(const Json& json) { return json.asUInt64(); }
+  static double GetDouble(const Json& json) { return json.asDouble(); }
+  static std::string GetString(const Json& json) { return json.asString(); }
+  static bool GetBool(const Json& json) { return json.asBool(); }
+
   static const Json* TryGetChild(const Json& json, std::string_view key) {
-    if (!json.isObject()) {
-      return nullptr;
-    }
-    // 指针区间版 find：不构造临时 std::string，命中返回节点指针
-    return json.find(key.data(), key.data() + key.size());
+    return json.isObject() ? json.find(key.data(), key.data() + key.size())
+                           : nullptr;
   }
+
   static std::size_t GetArraySize(const Json& json) { return json.size(); }
+
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json[static_cast<Json::ArrayIndex>(index)];
   }
-  struct MemberIterator {
-    using difference_type = std::ptrdiff_t;
-    using value_type = std::pair<std::string_view, const Json*>;
-    using reference = value_type;
-    using pointer = void;
-    using iterator_concept = std::forward_iterator_tag;
-    using iterator_category = std::forward_iterator_tag;
 
-    Json::const_iterator it{};
-    // jsoncpp 的 name() 按值返回 std::string，键必须由迭代器持有
-    mutable std::string key{};
+  // Json迭代器 (C++20)
+  struct MemberIterator {
+    // 距离类型
+    using difference_type = std::ptrdiff_t;
+    // 指定迭代器能力
+    using iterator_concept = std::forward_iterator_tag;
+    // 类型
+    using value_type = std::pair<std::string_view, const Json*>;
 
     value_type operator*() const {
       key = it.name();
@@ -65,34 +70,35 @@ struct JsonTraits<Json::Value> {
       ++it;
       return *this;
     }
+    // 后置自增
     MemberIterator operator++(int) {
-      MemberIterator copy = *this;
+      auto copy = *this;
       ++it;
       return copy;
     }
     bool operator==(const MemberIterator& other) const {
       return it == other.it;
     }
+
+    Json::const_iterator it{};
+    // jsoncpp 的 name() 按值返回 std::string，键必须由迭代器持有
+    mutable std::string key{};
   };
 
-  static MemberIterator MemberBegin(const Json& json) { return {json.begin()}; }
-  static MemberIterator MemberEnd(const Json& json) { return {json.end()}; }
-
-  static int GetInt(const Json& json) { return json.asInt(); }
-  static unsigned int GetUint(const Json& json) { return json.asUInt(); }
-  static std::int64_t GetInt64(const Json& json) { return json.asInt64(); }
-  static std::uint64_t GetUint64(const Json& json) { return json.asUInt64(); }
-  static double GetDouble(const Json& json) { return json.asDouble(); }
-  static std::string GetString(const Json& json) { return json.asString(); }
-  static bool GetBool(const Json& json) { return json.asBool(); }
-};  // namespace sc::json
+  static MemberIterator MemberBegin(const Json& json) {
+    return {.it = json.begin()};
+  }
+  static MemberIterator MemberEnd(const Json& json) {
+    return {.it = json.end()};
+  }
+};
 
 template <typename ErrorHandler>
-class JsonBuilder<Json::Value, ErrorHandler> {
+class JsonParser<Json::Value, ErrorHandler> {
  public:
-  JsonBuilder() = default;
+  JsonParser() = default;
 
-  explicit JsonBuilder(std::string_view json, ErrorHandler error_handler = {}) {
+  explicit JsonParser(std::string_view json, ErrorHandler error_handler = {}) {
     Json::CharReaderBuilder builder;
     std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     Json::Value parsed;
@@ -105,11 +111,10 @@ class JsonBuilder<Json::Value, ErrorHandler> {
     }
     json_ = std::move(parsed);
   }
-
-  JsonBuilder(const JsonBuilder&) = delete;
-  JsonBuilder(JsonBuilder&&) = delete;
-  JsonBuilder& operator=(const JsonBuilder&) = delete;
-  JsonBuilder& operator=(JsonBuilder&&) = delete;
+  JsonParser(const JsonParser&) = delete;
+  JsonParser(JsonParser&&) = delete;
+  JsonParser& operator=(const JsonParser&) = delete;
+  JsonParser& operator=(JsonParser&&) = delete;
 
   [[nodiscard]] const Json::Value& json() const { return json_; }
 
@@ -119,4 +124,4 @@ class JsonBuilder<Json::Value, ErrorHandler> {
 
 }  // namespace sc::json
 
-#endif  // SCCOMMON_JSON_TRAITS_JSONCPP_H
+#endif  // SCCOMMON_JSONCPP_H

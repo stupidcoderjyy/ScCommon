@@ -1,9 +1,10 @@
 //
-// Created by jiangyuyun3 on 2026/9/8.
+// Created by PC on 2026/9/13.
 //
 
-#ifndef SCCOMMON_NLOHMANN_N_H
-#define SCCOMMON_NLOHMANN_N_H
+#ifndef SCCOMMON_NLOHMANN_H
+#define SCCOMMON_NLOHMANN_H
+
 #include <exception>
 #include <iterator>
 #include <limits>
@@ -12,14 +13,14 @@
 
 #include "../json_traits.h"
 
+namespace sc::json {
+
 template <>
-struct sc::json::JsonTraits<nlohmann::json> {
+struct JsonTraits<nlohmann::json> {
   using Json = nlohmann::json;
 
   static bool IsObject(const Json& json) { return json.is_object(); }
   static bool IsArray(const Json& json) { return json.is_array(); }
-  // Is<整型> 语义：JSON
-  // 整数值能无损转换到目标类型即为真（不要求存储类型一致）。
   static bool IsInt(const Json& json) {
     if (json.is_number_unsigned()) {
       return json.get<std::uint64_t>() <=
@@ -63,47 +64,6 @@ struct sc::json::JsonTraits<nlohmann::json> {
   static bool IsString(const Json& json) { return json.is_string(); }
   static bool IsBool(const Json& json) { return json.is_boolean(); }
 
-  static const Json* TryGetChild(const Json& json, std::string_view key) {
-    if (!json.is_object()) {
-      return nullptr;
-    }
-    const auto it = json.find(std::string(key));
-    return it == json.end() ? nullptr : &*it;
-  }
-  static std::size_t GetArraySize(const Json& json) { return json.size(); }
-  static const Json& GetArrayElement(const Json& json, std::size_t index) {
-    return json.at(index);
-  }
-  struct MemberIterator {
-    using difference_type = std::ptrdiff_t;
-    using value_type = std::pair<std::string_view, const Json*>;
-    using reference = value_type;
-    using pointer = void;
-    using iterator_concept = std::forward_iterator_tag;
-    using iterator_category = std::forward_iterator_tag;
-
-    Json::const_iterator it{};
-
-    value_type operator*() const {
-      return {std::string_view(it.key()), &it.value()};
-    }
-    MemberIterator& operator++() {
-      ++it;
-      return *this;
-    }
-    MemberIterator operator++(int) {
-      MemberIterator copy = *this;
-      ++it;
-      return copy;
-    }
-    bool operator==(const MemberIterator& other) const {
-      return it == other.it;
-    }
-  };
-
-  static MemberIterator MemberBegin(const Json& json) { return {json.begin()}; }
-  static MemberIterator MemberEnd(const Json& json) { return {json.end()}; }
-
   static int GetInt(const Json& json) { return json.get<int>(); }
   static unsigned int GetUint(const Json& json) {
     return json.get<unsigned int>();
@@ -119,14 +79,62 @@ struct sc::json::JsonTraits<nlohmann::json> {
     return json.get<std::string>();
   }
   static bool GetBool(const Json& json) { return json.get<bool>(); }
+
+  static const Json* TryGetChild(const Json& json, std::string_view key) {
+    if (!json.is_object()) {
+      return nullptr;
+    }
+    const auto it = json.find(std::string(key));
+    return it == json.end() ? nullptr : &*it;
+  }
+  static std::size_t GetArraySize(const Json& json) { return json.size(); }
+  static const Json& GetArrayElement(const Json& json, std::size_t index) {
+    return json.at(index);
+  }
+
+  // Json迭代器 (C++20)
+  struct MemberIterator {
+    // 距离类型
+    using difference_type = std::ptrdiff_t;
+    // 指定迭代器能力
+    using iterator_concept = std::forward_iterator_tag;
+    // 类型
+    using value_type = std::pair<std::string_view, const Json*>;
+
+    value_type operator*() const {
+      return {std::string_view(it.key()), &it.value()};
+    }
+    MemberIterator& operator++() {
+      ++it;
+      return *this;
+    }
+    // 后置自增
+    MemberIterator operator++(int) {
+      auto copy = *this;
+      ++it;
+      return copy;
+    }
+    bool operator==(const MemberIterator& other) const {
+      return it == other.it;
+    }
+
+    Json::const_iterator it{};
+  };
+
+  static MemberIterator MemberBegin(const Json& json) {
+    return {.it = json.begin()};
+  }
+  static MemberIterator MemberEnd(const Json& json) {
+    return {.it = json.end()};
+  }
 };
 
 template <typename ErrorHandler>
-class sc::json::JsonBuilder<nlohmann::json, ErrorHandler> {
+class JsonParser<nlohmann::json, ErrorHandler> {
  public:
-  JsonBuilder() = default;
+  JsonParser() = default;
 
-  explicit JsonBuilder(std::string_view json, ErrorHandler error_handler = {}) {
+  explicit JsonParser(std::string_view json, ErrorHandler error_handler = {}) {
     try {
       json_ = nlohmann::json::parse(json.data(), json.data() + json.size());
     } catch (std::exception& e) {
@@ -134,11 +142,10 @@ class sc::json::JsonBuilder<nlohmann::json, ErrorHandler> {
       throw;
     }
   }
-
-  JsonBuilder(const JsonBuilder&) = delete;
-  JsonBuilder(JsonBuilder&&) = delete;
-  JsonBuilder& operator=(const JsonBuilder&) = delete;
-  JsonBuilder& operator=(JsonBuilder&&) = delete;
+  JsonParser(const JsonParser&) = delete;
+  JsonParser(JsonParser&&) = delete;
+  JsonParser& operator=(const JsonParser&) = delete;
+  JsonParser& operator=(JsonParser&&) = delete;
 
   [[nodiscard]] const nlohmann::json& json() const { return json_; }
 
@@ -146,4 +153,6 @@ class sc::json::JsonBuilder<nlohmann::json, ErrorHandler> {
   nlohmann::json json_;
 };
 
-#endif  // SCCOMMON_NLOHMANN_N_H
+}  // namespace sc::json
+
+#endif  // SCCOMMON_NLOHMANN_H

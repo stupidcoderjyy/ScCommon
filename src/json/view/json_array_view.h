@@ -1,26 +1,28 @@
 //
-// Created by jiangyuyun3 on 2026/9/11.
+// Created by jiangyuyun3 on 2026/9/14.
 //
 
-#ifndef SCCOMMON_JSON_VIEW_JSON_ARRAY_VIEW_H
-#define SCCOMMON_JSON_VIEW_JSON_ARRAY_VIEW_H
+#ifndef SCCOMMON_JSON_ARRAY_VIEW_H
+#define SCCOMMON_JSON_ARRAY_VIEW_H
 
-#include <cstddef>
-#include <iterator>
-#include <type_traits>
-
-#include "json_view.h"
+#include "../json_view.h"
+#include "../util/json_error.h"
 
 namespace sc::json {
 
-// 对 JSON 数组的惰性 range，元素按值产出 JsonView，满足 random_access_range。
-template <typename Json, typename ErrorHandler = DefaultJsonParserErrorHandler>
+template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
 class JsonArrayView {
  public:
+  JsonArrayView() noexcept = default;
+  JsonArrayView(const Json& array, ErrorHandler& handler) noexcept
+      : array_(&array),
+        size_(JsonTraits<Json>::GetArraySize(array)),
+        handler_(&handler) {}
+
   struct iterator {
     using difference_type = std::ptrdiff_t;
     using value_type = JsonView<Json, ErrorHandler>;
-    using reference = value_type;  // 按值返回
+    using reference = value_type;
     using pointer = void;
     using iterator_concept = std::random_access_iterator_tag;
     using iterator_category = std::random_access_iterator_tag;
@@ -29,6 +31,7 @@ class JsonArrayView {
       return value_type{JsonTraits<Json>::GetArrayElement(*array_, index_),
                         *handler_};
     }
+
     iterator& operator++() {
       ++index_;
       return *this;
@@ -47,20 +50,20 @@ class JsonArrayView {
       --index_;
       return copy;
     }
+
     iterator& operator+=(difference_type offset) {
       index_ = static_cast<std::size_t>(static_cast<difference_type>(index_) +
                                         offset);
       return *this;
     }
     iterator& operator-=(difference_type offset) { return *this += -offset; }
+
     iterator operator+(difference_type offset) const {
       iterator copy = *this;
       copy += offset;
       return copy;
     }
-    iterator operator-(difference_type offset) const {
-      return *this + (-offset);
-    }
+    iterator operator-(difference_type offset) const { return *this - offset; }
     friend iterator operator+(difference_type offset, const iterator& it) {
       return it + offset;
     }
@@ -74,6 +77,7 @@ class JsonArrayView {
     bool operator==(const iterator& other) const {
       return index_ == other.index_;
     }
+
     bool operator<(const iterator& other) const {
       return index_ < other.index_;
     }
@@ -87,18 +91,10 @@ class JsonArrayView {
     ErrorHandler* handler_ = nullptr;
   };
 
-  JsonArrayView() noexcept = default;
-  JsonArrayView(const Json& array, ErrorHandler& handler) noexcept
-      : array_(&array),
-        size_(JsonTraits<Json>::GetArraySize(array)),
-        handler_(&handler) {}
-
-  iterator begin() const { return {array_, 0, handler_}; }
-  iterator end() const { return {array_, size_, handler_}; }
+  [[nodiscard]] iterator begin() const { return {array_, 0, handler_}; }
+  [[nodiscard]] iterator end() const { return {array_, size_, handler_}; }
   [[nodiscard]] std::size_t size() const noexcept { return size_; }
   [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
-
-  static JsonArrayView Empty() noexcept { return {}; }
 
  private:
   const Json* array_ = nullptr;
@@ -115,21 +111,21 @@ JsonArrayView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewArray(
                     std::is_same_v<ExistencePolicy, Optional>,
                 "JsonView: unsupported ExistencePolicy");
   if (!valid()) {
-    return JsonArrayView<Json, ErrorHandler>::Empty();
+    return {};
   }
   const Json* node = this->template Find<ExistencePolicy>(path);
   if (!node) {
-    return JsonArrayView<Json, ErrorHandler>::Empty();
+    return {};
   }
   if (!JsonTraits<Json>::IsArray(*node)) {
     if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-      handler_->OnTypeMismatch(detail::PathString(path));
+      handler_.OnTypeMismatch(detail::PathString(path));
     }
-    return JsonArrayView<Json, ErrorHandler>::Empty();
+    return {};
   }
-  return JsonArrayView<Json, ErrorHandler>(*node, *handler_);
+  return {*node, handler_};
 }
 
 }  // namespace sc::json
 
-#endif  // SCCOMMON_JSON_VIEW_JSON_ARRAY_VIEW_H
+#endif  // SCCOMMON_JSON_ARRAY_VIEW_H

@@ -1,9 +1,10 @@
 //
-// Created by jiangyuyun3 on 2026/9/11.
+// Created by PC on 2026/9/14.
 //
 
 #ifndef SCCOMMON_JSON_PATH_H
 #define SCCOMMON_JSON_PATH_H
+
 #include <algorithm>
 #include <array>
 #include <concepts>
@@ -12,8 +13,11 @@
 #include <string_view>
 #include <vector>
 
+#include "util/json_path_util.h"
+
 namespace sc::json {
 
+// 编译器路径的表示
 template <std::size_t N>
 struct Parts {
   std::array<std::string_view, N> parts;
@@ -21,57 +25,26 @@ struct Parts {
   constexpr std::string_view operator[](std::size_t i) const noexcept {
     return parts[i];
   }
-  constexpr auto begin() const { return parts.begin(); }
-  constexpr auto end() const { return parts.end(); }
+  constexpr auto Begin() const { return parts.begin(); }
+  constexpr auto End() const { return parts.end(); }
 };
 
-consteval bool HasEmptySegment(std::string_view s) {
-  if (s.empty()) return false;
-  if (s.front() == '.' || s.back() == '.') return true;
-  return s.find("..") != std::string_view::npos;
-}
-
-consteval bool HasInvalidBracket(std::string_view s) {
-  std::size_t i = 0;
-  while (i < s.size()) {
-    const std::size_t open = s.find('[', i);
-    if (open == std::string_view::npos) return false;
-    const std::size_t close = s.find(']', open + 1);
-    if (close == std::string_view::npos) return true;  // 未闭合
-    const std::string_view digits = s.substr(open + 1, close - open - 1);
-    if (digits.empty()) return true;  // "[]"
-    for (const char c : digits) {
-      if (c < '0' || c > '9') return true;  // "[abc]"
-    }
-    i = close + 1;
+// 用于提供编译期string_view
+template <std::size_t N>
+struct FixedString {
+  std::array<char, N> data{};
+  consteval FixedString(const char (&s)[N]) {  // NOLINT 必须支持隐式转换
+    std::copy_n(s, N, data.begin());
   }
-  return false;
-}
-
-consteval bool NextToken(std::string_view s, std::size_t& i, std::size_t& start,
-                         std::size_t& end) {
-  if (i >= s.size()) return false;
-
-  if (s[i] == '[') {
-    const std::size_t close = s.find(']', i);
-    start = i;
-    end = close == std::string_view::npos ? s.size() : close + 1;
-    i = end;
-  } else {
-    start = i;
-    while (i < s.size() && s[i] != '.' && s[i] != '[') ++i;
-    end = i;
+  [[nodiscard]] consteval std::string_view view() const {
+    return {data.data(), N - 1};
   }
+};
 
-  if (i < s.size() && s[i] == '.') ++i;  // 跳过一个分隔点
-  return true;
-}
-
-consteval std::size_t CountParts(std::string_view s) {
-  std::size_t n = 0, i = 0, a, b;
-  while (NextToken(s, i, a, b)) ++n;
-  return n;
-}
+// 推导指引
+// 缺少指引的话必须写 FixedString<4> str = "1234";
+template <std::size_t N>
+FixedString(const char (&)[N]) -> FixedString<N>;
 
 template <std::size_t N>
 consteval Parts<N> MakeParts(std::string_view s) {
@@ -80,21 +53,6 @@ consteval Parts<N> MakeParts(std::string_view s) {
   while (NextToken(s, i, a, b)) r.parts[n++] = s.substr(a, b - a);
   return r;
 }
-
-template <std::size_t N>
-struct FixedString {
-  std::array<char, N> data{};
-  // 必须支持隐式转换
-  consteval FixedString(const char (&s)[N]) {
-    std::copy_n(s, N, data.begin());
-  }  // NOLINT
-  [[nodiscard]] consteval std::string_view view() const {
-    return {data.data(), N - 1};
-  }
-};
-
-template <std::size_t N>
-FixedString(const char (&)[N]) -> FixedString<N>;
 
 template <FixedString S>
 consteval auto operator""_path() {
@@ -116,18 +74,12 @@ concept PathLike = requires(const Path& path, std::size_t index) {
   { path[index] } -> std::convertible_to<std::string_view>;
 };
 
-// 运行期路径：与 Parts<N> 产出相同的 token 序列（"a.b[2].c" →
-// {"a","b","[2]","c"}）。 代价：不做编译期校验；非法路径（空段、'['
-// 未闭合等）在解析阶段由 OnPathResolveError 报告。 token 由本对象持有：短 key
-// 走 SSO 不产生堆分配。
 class RuntimePath {
  public:
   RuntimePath() = default;
   explicit RuntimePath(std::string_view path) { Parse(path); }
 
-  [[nodiscard]] std::size_t Size() const noexcept {
-    return tokens_.size();
-  }  // NOLINT
+  [[nodiscard]] std::size_t Size() const noexcept { return tokens_.size(); }
   [[nodiscard]] std::string_view operator[](std::size_t index) const noexcept {
     return tokens_[index];
   }

@@ -1,9 +1,9 @@
 //
-// Created by jiangyuyun3 on 2026/9/8.
+// Created by PC on 2026/9/13.
 //
 
-#ifndef SCCOMMON_RAPIDJSON_N_H
-#define SCCOMMON_RAPIDJSON_N_H
+#ifndef SCCOMMON_RAPIDJSON_H
+#define SCCOMMON_RAPIDJSON_H
 
 #include <rapidjson/document.h>
 
@@ -18,14 +18,14 @@
 
 #include "../json_traits.h"
 
+namespace sc::json {
+
 template <>
-struct sc::json::JsonTraits<rapidjson::Value> {
+struct JsonTraits<rapidjson::Value> {
   using Json = rapidjson::Value;
 
   static bool IsObject(const Json& json) { return json.IsObject(); }
   static bool IsArray(const Json& json) { return json.IsArray(); }
-  // Is<整型> 语义：JSON
-  // 整数值能无损转换到目标类型即为真（不要求存储标志一致）。
   static bool IsInt(const Json& json) {
     return json.IsInt() ||
            (json.IsUint() &&
@@ -55,56 +55,6 @@ struct sc::json::JsonTraits<rapidjson::Value> {
   static bool IsDouble(const Json& json) { return json.IsDouble(); }
   static bool IsString(const Json& json) { return json.IsString(); }
   static bool IsBool(const Json& json) { return json.IsBool(); }
-
-  static const Json* TryGetChild(const Json& json, std::string_view key) {
-    if (!json.IsObject()) {
-      return nullptr;
-    }
-    // StringRef 构造出「常量字符串」视图，不拷贝、不分配
-    const Json name(rapidjson::StringRef(
-        key.data(), static_cast<rapidjson::SizeType>(key.size())));
-    const auto it = json.FindMember(name);
-    return it == json.MemberEnd() ? nullptr : &it->value;
-  }
-  static std::size_t GetArraySize(const Json& json) { return json.Size(); }
-  static const Json& GetArrayElement(const Json& json, std::size_t index) {
-    return json[static_cast<rapidjson::SizeType>(index)];
-  }
-  struct MemberIterator {
-    using difference_type = std::ptrdiff_t;
-    using value_type = std::pair<std::string_view, const Json*>;
-    using reference = value_type;
-    using pointer = void;
-    using iterator_concept = std::forward_iterator_tag;
-    using iterator_category = std::forward_iterator_tag;
-
-    Json::ConstMemberIterator it{};
-
-    value_type operator*() const {
-      return {
-          std::string_view(it->name.GetString(), it->name.GetStringLength()),
-          &it->value};
-    }
-    MemberIterator& operator++() {
-      ++it;
-      return *this;
-    }
-    MemberIterator operator++(int) {
-      MemberIterator copy = *this;
-      ++it;
-      return copy;
-    }
-    bool operator==(const MemberIterator& other) const {
-      return it == other.it;
-    }
-  };
-
-  static MemberIterator MemberBegin(const Json& json) {
-    return {json.MemberBegin()};
-  }
-  static MemberIterator MemberEnd(const Json& json) {
-    return {json.MemberEnd()};
-  }
 
   static int GetInt(const Json& json) {
     if (json.IsInt64()) {
@@ -148,16 +98,68 @@ struct sc::json::JsonTraits<rapidjson::Value> {
   static double GetDouble(const Json& json) { return json.GetDouble(); }
   static std::string GetString(const Json& json) { return json.GetString(); }
   static bool GetBool(const Json& json) { return json.GetBool(); }
+
+  static const Json* TryGetChild(const Json& json, std::string_view key) {
+    if (!json.IsObject()) {
+      return nullptr;
+    }
+    // StringRef 构造出「常量字符串」视图，不拷贝、不分配
+    const Json name(rapidjson::StringRef(
+        key.data(), static_cast<rapidjson::SizeType>(key.size())));
+    const auto it = json.FindMember(name);
+    return it == json.MemberEnd() ? nullptr : &it->value;
+  }
+  static std::size_t GetArraySize(const Json& json) { return json.Size(); }
+  static const Json& GetArrayElement(const Json& json, std::size_t index) {
+    return json[static_cast<rapidjson::SizeType>(index)];
+  }
+
+  // Json迭代器 (C++20)
+  struct MemberIterator {
+    // 距离类型
+    using difference_type = std::ptrdiff_t;
+    // 指定迭代器能力
+    using iterator_concept = std::forward_iterator_tag;
+    // 类型
+    using value_type = std::pair<std::string_view, const Json*>;
+
+    value_type operator*() const {
+      return {
+          std::string_view(it->name.GetString(), it->name.GetStringLength()),
+          &it->value};
+    }
+    MemberIterator& operator++() {
+      ++it;
+      return *this;
+    }
+    // 后置自增
+    MemberIterator operator++(int) {
+      auto copy = *this;
+      ++it;
+      return copy;
+    }
+    bool operator==(const MemberIterator& other) const {
+      return it == other.it;
+    }
+
+    Json::ConstMemberIterator it{};
+  };
+
+  static MemberIterator MemberBegin(const Json& json) {
+    return {.it = json.MemberBegin()};
+  }
+  static MemberIterator MemberEnd(const Json& json) {
+    return {.it = json.MemberEnd()};
+  }
 };
 
 template <typename ErrorHandler>
-class sc::json::JsonBuilder<rapidjson::Value, ErrorHandler> {
+class JsonParser<rapidjson::Value, ErrorHandler> {
  public:
-  JsonBuilder() = default;
+  JsonParser() = default;
 
-  explicit JsonBuilder(std::string_view json, ErrorHandler error_handler = {}) {
+  explicit JsonParser(std::string_view json, ErrorHandler error_handler = {}) {
     doc_.emplace();  // Document 自带的解析栈按需构造，只用 root 构造时不分配
-    // 长度版解析：直接读输入缓冲，不必先拷贝成 NUL 结尾的 std::string
     doc_->Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(json.data(),
                                                                   json.size());
     if (doc_->HasParseError()) {
@@ -167,13 +169,12 @@ class sc::json::JsonBuilder<rapidjson::Value, ErrorHandler> {
       throw std::move(e);
     }
   }
+  JsonParser(const JsonParser&) = delete;
+  JsonParser(JsonParser&&) = delete;
+  JsonParser& operator=(const JsonParser&) = delete;
+  JsonParser& operator=(JsonParser&&) = delete;
 
-  JsonBuilder(const JsonBuilder&) = delete;
-  JsonBuilder(JsonBuilder&&) = delete;
-  JsonBuilder& operator=(const JsonBuilder&) = delete;
-  JsonBuilder& operator=(JsonBuilder&&) = delete;
-
-  // Document 是 Value 的子类，且自带分配器；分配器随 JsonBuilder 存活，
+  // Document 是 Value 的子类，且自带分配器；分配器随 JsonParser 存活，
   // 因此返回的 Value 引用在 JsonParser 生命周期内始终有效。
   [[nodiscard]] const rapidjson::Value& json() const { return *doc_; }
 
@@ -181,4 +182,6 @@ class sc::json::JsonBuilder<rapidjson::Value, ErrorHandler> {
   std::optional<rapidjson::Document> doc_;
 };
 
-#endif  // SCCOMMON_RAPIDJSON_N_H
+}  // namespace sc::json
+
+#endif  // SCCOMMON_RAPIDJSON_H

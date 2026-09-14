@@ -1,5 +1,5 @@
 //
-// Created by jiangyuyun3 on 2026/9/11.
+// Created by PC on 2026/9/13.
 //
 
 #ifndef SCCOMMON_JSON_TRAITS_MIXIN_H
@@ -27,7 +27,6 @@ namespace sc::json {
 template <typename Derived, typename Json>
 class JsonTraitsMixin {
  public:
-  // ---------------- 类型判定 ----------------
   [[nodiscard]] bool IsObject() const {
     return Get<bool, &JsonTraits<Json>::IsObject>();
   }
@@ -56,35 +55,6 @@ class JsonTraitsMixin {
     return Get<bool, &JsonTraits<Json>::IsBool>();
   }
 
-  // ---------------- 结构与子节点 ----------------
-  [[nodiscard]] const Json* TryGetChild(std::string_view key) const {
-    const Json* n = node();
-    return n != nullptr ? JsonTraits<Json>::TryGetChild(*n, key) : nullptr;
-  }
-
-  [[nodiscard]] std::size_t GetArraySize() const {
-    return Get<std::size_t, &JsonTraits<Json>::GetArraySize>();
-  }
-
-  [[nodiscard]] const Json& GetArrayElement(std::size_t index) const {
-    const Json* n = node();
-    return n != nullptr ? JsonTraits<Json>::GetArrayElement(*n, index)
-                        : EmptyNode();
-  }
-
-  [[nodiscard]] typename JsonTraits<Json>::MemberIterator MemberBegin() const {
-    const Json* n = node();
-    return n != nullptr ? JsonTraits<Json>::MemberBegin(*n)
-                        : typename JsonTraits<Json>::MemberIterator{};
-  }
-
-  [[nodiscard]] typename JsonTraits<Json>::MemberIterator MemberEnd() const {
-    const Json* n = node();
-    return n != nullptr ? JsonTraits<Json>::MemberEnd(*n)
-                        : typename JsonTraits<Json>::MemberIterator{};
-  }
-
-  // ---------------- 取值 ----------------
   [[nodiscard]] int GetInt() const {
     return Get<int, &JsonTraits<Json>::GetInt>();
   }
@@ -107,19 +77,43 @@ class JsonTraitsMixin {
     return Get<bool, &JsonTraits<Json>::GetBool>();
   }
 
- private:
-  // 统一的读取封装：无效节点返回 T{}（指针类型即 nullptr）
-  template <typename T, T (*Fn)(const Json&)>
-  [[nodiscard]] T Get() const {
-    const Json* n = node();
-    return n != nullptr ? Fn(*n) : T{};
+  [[nodiscard]] const Json* TryGetChild(std::string_view key) const {
+    auto* n = node();
+    return n ? JsonTraits<Json>::TryGetChild(*n, key) : nullptr;
   }
 
+  [[nodiscard]] std::size_t GetArraySize() const {
+    return Get<std::size_t, &JsonTraits<Json>::GetArraySize>();
+  }
+
+  [[nodiscard]] const Json& GetArrayElement(std::size_t index) const {
+    auto* n = node();
+    return n ? JsonTraits<Json>::GetArrayElement(*n, index) : EmptyNode();
+  }
+
+  [[nodiscard]] JsonTraits<Json>::MemberIterator MemberBegin() const {
+    auto* n = node();
+    return n ? JsonTraits<Json>::MemberBegin(*n)
+             : typename JsonTraits<Json>::MemberIterator{};
+  }
+
+  [[nodiscard]] JsonTraits<Json>::MemberIterator MemberEnd() const {
+    auto* n = node();
+    return n ? JsonTraits<Json>::MemberEnd(*n)
+             : typename JsonTraits<Json>::MemberIterator{};
+  }
+
+ private:
   const Json* node() const noexcept {
     return static_cast<const Derived*>(this)->node();
   }
 
-  // 无效节点上 GetArrayElement 的安全兜底
+  template <typename T, T (*Getter)(const Json&)>
+  [[nodiscard]] T Get() const {
+    auto* n = node();
+    return n ? Getter(*n) : T{};
+  }
+
   static const Json& EmptyNode() {
     static const Json empty{};
     return empty;
