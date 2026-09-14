@@ -6,9 +6,12 @@
 #define SCCOMMON_NLOHMANN_H
 
 #include <exception>
+#include <istream>
 #include <iterator>
 #include <limits>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "../json_traits.h"
@@ -139,6 +142,15 @@ class JsonParser<nlohmann::json, ErrorHandler> {
       json_ = nlohmann::json::parse(json.data(), json.data() + json.size());
     } catch (std::exception& e) {
       error_handler.OnJsonParseError(json, e);
+      throw;
+    }
+  }
+  explicit JsonParser(std::istream& is, ErrorHandler error_handler = {}) {
+    try {
+      json_ = nlohmann::json::parse(is);
+    } catch (std::exception& e) {
+      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
+      error_handler.OnJsonParseError(std::string_view{}, e);
       throw;
     }
   }

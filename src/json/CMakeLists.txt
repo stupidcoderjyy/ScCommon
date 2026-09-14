@@ -51,15 +51,17 @@ install(DIRECTORY traits view util
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/json
 )
 
-set(CONFIG_FILE_NAME ${TARGET}-config.cmake)
-set(TARGETS_FILE_NAME ${TARGET}-targets.cmake)
-set(CONFIG_VERSION_FILE_NAME ${TARGET}-config-version.cmake)
+set(PACKAGE_NAME sc)
+set(CONFIG_FILE_NAME ${PACKAGE_NAME}-config.cmake)
+set(TARGETS_FILE_NAME ${PACKAGE_NAME}-targets.cmake)
+set(CONFIG_VERSION_FILE_NAME ${PACKAGE_NAME}-config-version.cmake)
+set(CONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PACKAGE_NAME})
 
 # 生成包配置文件
 configure_package_config_file(
     ${CONFIG_FILE_NAME}.in
     ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_FILE_NAME}
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sc
+    INSTALL_DESTINATION ${CONFIG_INSTALL_DIR}
 )
 
 # 生成版本配置文件
@@ -70,6 +72,13 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion
 )
 
+# 安装包配置文件
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_FILE_NAME}
+    ${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_VERSION_FILE_NAME}
+    DESTINATION ${CONFIG_INSTALL_DIR}
+)
+
 # 生成目标配置文件
 install(TARGETS ${TARGET}
     EXPORT EXPORT_TARGET
@@ -78,7 +87,7 @@ install(TARGETS ${TARGET}
 install(EXPORT EXPORT_TARGET
     FILE ${TARGETS_FILE_NAME}
     NAMESPACE sc::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/sc
+    DESTINATION ${CONFIG_INSTALL_DIR}
 )
 
 add_format_target(${TARGET}

@@ -6,8 +6,11 @@
 #define SCCOMMON_JSON_TRAITS_H
 #include <cstddef>
 #include <cstdint>
+#include <istream>
 #include <string>
 #include <string_view>
+
+#include "util/json_error.h"
 
 namespace sc::json {
 
@@ -43,13 +46,14 @@ struct JsonTraits {
   static MemberIterator MemberEnd(const Json&) noexcept;
 };
 
-// 从字符串构造json，构造出json的所有权归JsonParser所有
+// 从字符串/输入流构造json，构造出json的所有权归JsonParser所有
 // 发生错误调用ErrorHandler::OnJsonParseError
-template <typename Json, typename ErrorHandler>
+template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
 class JsonParser {
  public:
   JsonParser() = default;
   JsonParser(std::string_view json, ErrorHandler error_handler = {});
+  JsonParser(std::istream& is, ErrorHandler error_handler = {});
   JsonParser(const JsonParser&) = delete;
   JsonParser(JsonParser&&) = delete;
   JsonParser& operator=(const JsonParser&) = delete;

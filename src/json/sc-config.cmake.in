@@ -5,7 +5,7 @@ find_dependency(nlohmann_json)
 find_dependency(JsonCpp)
 find_dependency(RapidJSON)
 
-include("${CMAKE_CURRENT_LIST_DIR}/sc_json-targets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/sc-targets.cmake")
 
 # RapidJSON 没有 CMake 导入目标，仅提供头文件路径；
 # 安装后由这里重新补充到接口目标的 include 目录。

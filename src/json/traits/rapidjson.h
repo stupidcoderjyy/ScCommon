@@ -6,8 +6,10 @@
 #define SCCOMMON_RAPIDJSON_H
 
 #include <rapidjson/document.h>
+#include <rapidjson/istreamwrapper.h>
 
 #include <cstddef>
+#include <istream>
 #include <iterator>
 #include <limits>
 #include <optional>
@@ -166,6 +168,18 @@ class JsonParser<rapidjson::Value, ErrorHandler> {
       std::runtime_error e("rapidjson parse error at offset " +
                            std::to_string(doc_->GetErrorOffset()));
       error_handler.OnJsonParseError(json, e);
+      throw std::move(e);
+    }
+  }
+  explicit JsonParser(std::istream& is, ErrorHandler error_handler = {}) {
+    doc_.emplace();
+    rapidjson::IStreamWrapper wrapper(is);
+    doc_->ParseStream(wrapper);
+    if (doc_->HasParseError()) {
+      std::runtime_error e("rapidjson parse error at offset " +
+                           std::to_string(doc_->GetErrorOffset()));
+      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
+      error_handler.OnJsonParseError(std::string_view{}, e);
       throw std::move(e);
     }
   }

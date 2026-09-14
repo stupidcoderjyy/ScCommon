@@ -58,7 +58,8 @@ class JsonAccessMixin {
     static_assert(std::is_same_v<T, typename Extractor<Json>::ValueType>,
                   "JsonAccessMixin: AcquireArray element type must match "
                   "Extractor<Json>::ValueType");
-    return AcquireArrayWithExtractor<ExistencePolicy, Extractor<Json>>(path, arr);
+    return AcquireArrayWithExtractor<ExistencePolicy, Extractor<Json>>(path,
+                                                                       arr);
   }
 
   // 将json数组提取到列表容器，由列表推导提取器
@@ -69,7 +70,8 @@ class JsonAccessMixin {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonAccessMixin: unsupported ExistencePolicy");
-    return AcquireArrayWithExtractor<ExistencePolicy, Extractor<Json, T>>(path, arr);
+    return AcquireArrayWithExtractor<ExistencePolicy, Extractor<Json, T>>(path,
+                                                                          arr);
   }
 
   // 将json提取到Map容器，需要显式指定提取器
@@ -95,7 +97,8 @@ class JsonAccessMixin {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonAccessMixin: unsupported ExistencePolicy");
-    return AcquireMapWithExtractor<ExistencePolicy, Extractor<Json, T>>(path, map);
+    return AcquireMapWithExtractor<ExistencePolicy, Extractor<Json, T>>(path,
+                                                                        map);
   }
 
  private:

@@ -5,7 +5,9 @@
 #ifndef SCCOMMON_JSON_VIEW_H
 #define SCCOMMON_JSON_VIEW_H
 
+#include <istream>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -45,6 +47,12 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
   explicit JsonView(std::string_view json, ErrorHandler handler = {})
       : parser_(
             std::make_shared<JsonParser<Json, ErrorHandler>>(json, handler)),
+        json_(&parser_->json()),
+        handler_(std::move(handler)) {}
+  explicit JsonView(const std::string& json, ErrorHandler handler = {})
+      : JsonView(std::string_view(json), std::move(handler)) {}
+  explicit JsonView(std::istream& is, ErrorHandler handler = {})
+      : parser_(std::make_shared<JsonParser<Json, ErrorHandler>>(is, handler)),
         json_(&parser_->json()),
         handler_(std::move(handler)) {}
 

@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <istream>
 #include <iterator>
 #include <memory>
 #include <stdexcept>
@@ -107,6 +108,18 @@ class JsonParser<Json::Value, ErrorHandler> {
                        &errors)) {
       std::runtime_error e("jsoncpp parse error: " + errors);
       error_handler.OnJsonParseError(json, e);
+      throw std::move(e);
+    }
+    json_ = std::move(parsed);
+  }
+  explicit JsonParser(std::istream& is, ErrorHandler error_handler = {}) {
+    Json::Value parsed;
+    std::string errors;
+    if (Json::CharReaderBuilder builder;
+        !Json::parseFromStream(builder, is, &parsed, &errors)) {
+      std::runtime_error e("jsoncpp parse error: " + errors);
+      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
+      error_handler.OnJsonParseError(std::string_view{}, e);
       throw std::move(e);
     }
     json_ = std::move(parsed);

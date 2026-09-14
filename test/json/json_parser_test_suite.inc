@@ -10,6 +10,7 @@
 #include <exception>
 #include <map>
 #include <ranges>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -154,6 +155,123 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidTextCallsHandler) {
       (JsonView<SC_JSON_TYPE, ErrorHandler>(std::string_view("{oops"), handler)),
       std::exception);
   EXPECT_EQ(1u, ErrorHandler::parse_errors.size());
+}
+
+// std::string 重载：jsoncpp / nlohmann 的 Json 本身也能由 string 构造，
+// 该重载保证 std::string 实参按“文本”解析，而不是被当成节点。
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdString) {
+  const std::string text = R"({"a":{"b":42},"s":"hi"})";
+  JsonView<SC_JSON_TYPE> view(text);
+  EXPECT_TRUE(view.valid());
+  EXPECT_TRUE(view.IsObject());  // 若被当成节点，这里会是字符串节点
+  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+  EXPECT_EQ(std::string("hi"), view.View<Required>("s"_path).GetString());
+
+  int b = 0;
+  view.Acquire<JsonInt, Required>("a.b"_path, b);
+  EXPECT_EQ(42, b);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromTemporaryStdString) {
+  // 右值：临时 string 只在构造期间被读取，解析结果由 view 自己持有
+  JsonView<SC_JSON_TYPE> view(std::string(R"({"a":{"b":42}})"));
+  EXPECT_TRUE(view.valid());
+  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStdStringThrows) {
+  const std::string bad = "{oops";
+  EXPECT_THROW((JsonView<SC_JSON_TYPE>(bad)), std::runtime_error);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdStringUsesGivenHandler) {
+  using Exception = SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME);
+  using Handler = SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+
+  const std::string bad = "{oops";
+  try {
+    JsonView<SC_JSON_TYPE, Handler> view(bad, Handler("req-003"));
+    FAIL() << "expected ContextException";
+  } catch (const Exception& e) {
+    EXPECT_EQ(std::string("req-003"), e.RequestId());
+    EXPECT_FALSE(e.Message().empty());
+  }
+}
+
+// 输入流构造：解析结果由 view 自己持有，流只在构造期间被读取
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStream) {
+  std::istringstream input(R"({"a":{"b":42},"s":"hi"})");
+  JsonView<SC_JSON_TYPE> view(input);
+  EXPECT_TRUE(view.valid());
+  EXPECT_TRUE(view.IsObject());
+  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+  EXPECT_EQ(std::string("hi"), view.View<Required>("s"_path).GetString());
+
+  int b = 0;
+  view.Acquire<JsonInt, Required>("a.b"_path, b);
+  EXPECT_EQ(42, b);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromMultilineStream) {
+  std::istringstream input(R"({
+    "a": { "b": 42 },
+    "list": [1, 2, 3]
+  })");
+  JsonView<SC_JSON_TYPE> view(input);
+  EXPECT_TRUE(view.valid());
+  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+
+  auto list = view.ViewArray<Required>("list"_path);
+  EXPECT_EQ(3u, list.size());
+  EXPECT_EQ(2, (*(list.begin() + 1)).GetInt());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStreamOutlivesStream) {
+  // 流销毁后 view 仍然有效：解析结果的所有权在 view 手里
+  JsonView<SC_JSON_TYPE> view = [] {
+    std::istringstream input(R"({"a":{"b":42}})");
+    return JsonView<SC_JSON_TYPE>(input);
+  }();
+  EXPECT_TRUE(view.valid());
+  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ParserFromStream) {
+  std::istringstream input(R"({"a":{"b":42}})");
+  JsonParser<SC_JSON_TYPE> parser(input);
+  JsonView<SC_JSON_TYPE> view(parser.json());
+  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStreamThrows) {
+  std::istringstream input("{oops");
+  EXPECT_THROW((JsonView<SC_JSON_TYPE>(input)), std::runtime_error);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStreamCallsHandler) {
+  using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+  ErrorHandler::parse_errors.clear();
+
+  // 与文本构造一致：处理器被调用是核心约定；处理器吞掉异常后各库抛出的具体
+  // 异常类型不完全一致，所以这里只要求抛出 std::exception。
+  std::istringstream input("{oops");
+  EXPECT_THROW((JsonView<SC_JSON_TYPE, ErrorHandler>(input, ErrorHandler{})),
+               std::exception);
+  EXPECT_EQ(1u, ErrorHandler::parse_errors.size());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStreamUsesGivenHandler) {
+  using Exception = SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME);
+  using Handler = SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+
+  std::istringstream input("{oops");
+  try {
+    JsonView<SC_JSON_TYPE, Handler> view(input, Handler("req-004"));
+    FAIL() << "expected ContextException";
+  } catch (const Exception& e) {
+    EXPECT_EQ(std::string("req-004"), e.RequestId());
+    EXPECT_FALSE(e.Message().empty());
+  }
 }
 
 // ---------------- 路径解析 ----------------
