@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "../json_view.h"
+#include "../util/json_detail.h"
 
 namespace sc::json {
 
@@ -34,6 +35,9 @@ class JsonObjectView {
       const auto member = *it;
       return {member.first,
               JsonView<Json, ErrorHandler>(*member.second, *handler)};
+    }
+    [[nodiscard]] detail::ArrowProxy<value_type> operator->() const {
+      return {operator*()};
     }
     iterator& operator++() {
       ++it;

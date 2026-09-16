@@ -23,7 +23,7 @@ namespace sc::json {
 // 无效节点（无效 view）上的行为：
 //   判定类（Is*）返回 false；TryGetChild 返回 nullptr；GetArraySize 返回 0；
 //   取值类（Get*）返回默认构造值；GetArrayElement 返回静态空节点；
-//   MemberBegin/MemberEnd 返回默认迭代器（构成空区间）。
+//   ToString 返回空串；MemberBegin/MemberEnd 返回默认迭代器（构成空区间）。
 template <typename Derived, typename Json>
 class JsonTraitsMixin {
  public:
@@ -53,6 +53,9 @@ class JsonTraitsMixin {
   }
   [[nodiscard]] bool IsBool() const {
     return Get<bool, &JsonTraits<Json>::IsBool>();
+  }
+  [[nodiscard]] bool IsNull() const {
+    return Get<bool, &JsonTraits<Json>::IsNull>();
   }
 
   [[nodiscard]] int GetInt() const {
@@ -89,6 +92,10 @@ class JsonTraitsMixin {
   [[nodiscard]] const Json& GetArrayElement(std::size_t index) const {
     auto* n = node();
     return n ? JsonTraits<Json>::GetArrayElement(*n, index) : EmptyNode();
+  }
+
+  [[nodiscard]] std::string ToString() const {
+    return Get<std::string, &JsonTraits<Json>::ToString>();
   }
 
   [[nodiscard]] JsonTraits<Json>::MemberIterator MemberBegin() const {

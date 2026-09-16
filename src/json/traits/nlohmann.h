@@ -66,6 +66,7 @@ struct JsonTraits<nlohmann::json> {
   static bool IsDouble(const Json& json) { return json.is_number_float(); }
   static bool IsString(const Json& json) { return json.is_string(); }
   static bool IsBool(const Json& json) { return json.is_boolean(); }
+  static bool IsNull(const Json& json) { return json.is_null(); }
 
   static int GetInt(const Json& json) { return json.get<int>(); }
   static unsigned int GetUint(const Json& json) {
@@ -94,6 +95,9 @@ struct JsonTraits<nlohmann::json> {
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json.at(index);
   }
+
+  // dump() 默认紧凑输出
+  static std::string ToString(const Json& json) { return json.dump(); }
 
   // Json迭代器 (C++20)
   struct MemberIterator {

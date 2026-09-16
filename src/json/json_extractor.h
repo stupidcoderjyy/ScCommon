@@ -6,6 +6,7 @@
 #define SCCOMMON_JSON_EXTRACTOR_H
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <type_traits>
 
@@ -18,6 +19,14 @@ namespace detail {
 // 恒假但依赖模板参数：只有 Extractor 真正实例化到该类型时才会触发断言
 template <typename>
 inline constexpr bool unsupported_extractor_type = false;
+
+// std::optional 判定：不用 std::__is_optional_v 这类实现私有的名字
+template <typename>
+struct is_optional : std::false_type {};
+template <typename T>
+struct is_optional<std::optional<T>> : std::true_type {};
+template <typename T>
+inline constexpr bool is_optional_v = is_optional<std::remove_cv_t<T>>::value;
 
 }  // namespace detail
 
@@ -46,6 +55,20 @@ struct Extractor {
     } else if constexpr (std::is_same_v<T, bool>) {
       if (!JsonTraits<Json>::IsBool(json)) return false;
       val = JsonTraits<Json>::GetBool(json);
+    } else if constexpr (detail::is_optional_v<T>) {
+      if (JsonTraits<Json>::IsNull(json)) {
+        val.reset();
+        return true;
+      }
+      using ValType = T::value_type;
+      static_assert(!detail::is_optional_v<ValType>,
+                    "JsonExtractor: nested std::optional is not supported");
+      ValType inner_val{};
+      if (!Extractor<Json, ValType>::Extract(json, inner_val)) {
+        return false;
+      }
+      val = std::move(inner_val);
+      return true;
     } else {
       static_assert(detail::unsupported_extractor_type<T>,
                     "JsonExtractor: unsupported type; specialize "

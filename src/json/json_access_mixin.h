@@ -24,7 +24,8 @@ class JsonAccessMixin {
   template <template <typename> class Extractor,
             typename ExistencePolicy = Optional, typename T, typename Path>
     requires PathLike<Path>
-  Derived& Acquire(const Path& path, T& out, T default_val = {}) {
+  Derived& Acquire(const Path& path, T& out,
+                   std::type_identity_t<T> default_val = {}) {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonAccessMixin: unsupported ExistencePolicy");
@@ -38,7 +39,8 @@ class JsonAccessMixin {
   // 变量提取：由 out 类型推导提取器
   template <typename ExistencePolicy = Optional, typename T, typename Path>
     requires PathLike<Path>
-  Derived& Acquire(const Path& path, T& out, T default_val = {}) {
+  Derived& Acquire(const Path& path, T& out,
+                   std::type_identity_t<T> default_val = {}) {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonAccessMixin: unsupported ExistencePolicy");

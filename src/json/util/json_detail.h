@@ -51,6 +51,13 @@ inline void AppendNumber(std::string& out, std::size_t value) {
   }
 }
 
+template <typename T>
+struct ArrowProxy {
+  T value;
+  [[nodiscard]] T* operator->() noexcept { return &value; }
+  [[nodiscard]] const T* operator->() const noexcept { return &value; }
+};
+
 // 把路径还原成 "a.b[2].c" 形式并追加到 out（Parts<N> 与 RuntimePath 通用）。
 template <PathLike Path>
 void AppendPath(std::string& out, const Path& path) {

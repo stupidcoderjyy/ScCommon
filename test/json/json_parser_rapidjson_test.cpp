@@ -19,7 +19,7 @@ rapidjson::MemoryPoolAllocator<>& TestPool() {
 rapidjson::Value MakeJson() {
     rapidjson::Document doc;
     doc.Parse(
-            R"({"a":{"b":42},"neg":-7,"list":[1,2,3],"s":"hello","d":3.14,"flag":true,"obj_list":[{"id":1},{"id":2}],"point":{"x":10,"y":20},"big":9007199254740993,"big_neg":-9007199254740993})");
+            R"({"a":{"b":42},"neg":-7,"list":[1,2,3],"s":"hello","d":3.14,"flag":true,"nil":null,"zh":"\u4e2d\u6587","zh_raw":"中文","zh_key":{"\u952e":"\u503c"},"opt_list":[1,null,3],"opt_point":{"x":10,"y":null},"obj_list":[{"id":1},{"id":2}],"point":{"x":10,"y":20},"big":9007199254740993,"big_neg":-9007199254740993})");
     if (doc.HasParseError()) {
         throw std::runtime_error("rapidjson parse error");
     }

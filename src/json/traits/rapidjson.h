@@ -7,6 +7,8 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include <cstddef>
 #include <istream>
@@ -57,6 +59,7 @@ struct JsonTraits<rapidjson::Value> {
   static bool IsDouble(const Json& json) { return json.IsDouble(); }
   static bool IsString(const Json& json) { return json.IsString(); }
   static bool IsBool(const Json& json) { return json.IsBool(); }
+  static bool IsNull(const Json& json) { return json.IsNull(); }
 
   static int GetInt(const Json& json) {
     if (json.IsInt64()) {
@@ -114,6 +117,14 @@ struct JsonTraits<rapidjson::Value> {
   static std::size_t GetArraySize(const Json& json) { return json.Size(); }
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json[static_cast<rapidjson::SizeType>(index)];
+  }
+
+  // Writer 默认紧凑输出（无缩进、无多余空白）
+  static std::string ToString(const Json& json) {
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    return buffer.GetString();
   }
 
   // Json迭代器 (C++20)

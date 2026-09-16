@@ -7,6 +7,7 @@
 
 #include "../json_view.h"
 #include "../util/json_error.h"
+#include "../util/json_detail.h"
 
 namespace sc::json {
 
@@ -31,7 +32,9 @@ class JsonArrayView {
       return value_type{JsonTraits<Json>::GetArrayElement(*array_, index_),
                         *handler_};
     }
-
+    [[nodiscard]] detail::ArrowProxy<value_type> operator->() const {
+      return {operator*()};
+    }
     iterator& operator++() {
       ++index_;
       return *this;
@@ -63,7 +66,7 @@ class JsonArrayView {
       copy += offset;
       return copy;
     }
-    iterator operator-(difference_type offset) const { return *this - offset; }
+    iterator operator-(difference_type offset) const { return *this + (-offset); }
     friend iterator operator+(difference_type offset, const iterator& it) {
       return it + offset;
     }

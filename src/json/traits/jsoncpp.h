@@ -34,6 +34,7 @@ struct JsonTraits<Json::Value> {
   static bool IsDouble(const Json& json) { return json.isDouble(); }
   static bool IsString(const Json& json) { return json.isString(); }
   static bool IsBool(const Json& json) { return json.isBool(); }
+  static bool IsNull(const Json& json) { return json.isNull(); }
 
   static int GetInt(const Json& json) { return json.asInt(); }
   static unsigned int GetUint(const Json& json) { return json.asUInt(); }
@@ -52,6 +53,15 @@ struct JsonTraits<Json::Value> {
 
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json[static_cast<Json::ArrayIndex>(index)];
+  }
+
+  // 紧凑序列化。jsoncpp 默认把非 ASCII 转义成 \uXXXX，这里改为直接输出 UTF-8，
+  // 与 nlohmann / rapidjson 的输出保持一致（需要 jsoncpp >= 1.9.4）
+  static std::string ToString(const Json& json) {
+    ::Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";
+    builder["emitUTF8"] = true;
+    return ::Json::writeString(builder, json);
   }
 
   // Json迭代器 (C++20)

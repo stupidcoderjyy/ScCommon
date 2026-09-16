@@ -27,6 +27,7 @@ struct JsonTraits {
   static bool IsDouble(const Json&) noexcept;
   static bool IsString(const Json&) noexcept;
   static bool IsBool(const Json&) noexcept;
+  static bool IsNull(const Json&) noexcept;
 
   static int GetInt(const Json&);
   static unsigned int GetUint(const Json&);
@@ -39,6 +40,9 @@ struct JsonTraits {
   static const Json* TryGetChild(const Json&, std::string_view key) noexcept;
   static std::size_t GetArraySize(const Json&) noexcept;
   static const Json& GetArrayElement(const Json&, std::size_t index) noexcept;
+
+  // 序列化可能抛（非法 UTF-8、分配失败等），因此不标 noexcept
+  static std::string ToString(const Json&);
 
   // 迭代器接口，由各库特化提供实际类型
   using MemberIterator = void;
