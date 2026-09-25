@@ -20,87 +20,104 @@ namespace sc::json {
 template <typename Derived, typename Json>
 class JsonAccessMixin {
  public:
-  // 变量提取：必须显式指定提取器，如 Acquire<JsonInt, Required>(path, out)
-  template <template <typename> class Extractor,
-            typename ExistencePolicy = Optional, typename T, typename Path>
+  // 所有接口的模板参数都是 <类型, 策略 = Optional>：
+  // 第一个是「被提取/返回的类型」，第二个才是策略，因此 Get<bool>(path) 可用。
+
+  // ---------------- 写入形式：Put(path, out[, default]) ----------------
+  // T 由 out 推导，也可显式写 <类型, 策略>；default_val 是非推导语境，
+  // 因此默认值类型可与 out 不同（如 out=int64_t、默认值写 0）。
+  template <typename T, typename ExistencePolicy = Optional, typename Path>
     requires PathLike<Path>
-  Derived& Acquire(const Path& path, T& out,
-                   std::type_identity_t<T> default_val = {}) {
+  Derived& Put(const Path& path, T& out,
+               std::type_identity_t<T> default_val = {}) {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonAccessMixin: unsupported ExistencePolicy");
-    static_assert(
-        std::is_same_v<T, typename Extractor<Json>::ValueType>,
-        "JsonAccessMixin: out type must match Extractor<Json>::ValueType");
-    return AcquireWithExtractor<ExistencePolicy, Extractor<Json>>(
+    return FillValue<ExistencePolicy, Extractor<Json, T>>(
         path, out, std::move(default_val));
   }
 
-  // 变量提取：由 out 类型推导提取器
-  template <typename ExistencePolicy = Optional, typename T, typename Path>
+  // ---------------- 返回值形式：Get(path[, default]) ----------------
+  // 返回类型无法推导，T 必须显式；失败时回落 T{}（Optional）或交给 handler
+  template <typename T, typename ExistencePolicy = Optional, typename Path>
     requires PathLike<Path>
-  Derived& Acquire(const Path& path, T& out,
-                   std::type_identity_t<T> default_val = {}) {
-    static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                      std::is_same_v<ExistencePolicy, Optional>,
-                  "JsonAccessMixin: unsupported ExistencePolicy");
-    return AcquireWithExtractor<ExistencePolicy, Extractor<Json, T>>(
-        path, out, std::move(default_val));
+  [[nodiscard]] T Get(const Path& path) {
+    T out{};
+    Put<T, ExistencePolicy>(path, out);
+    return out;
   }
 
-  // 将json数组提取到列表容器，需要显式指定提取器
-  template <template <typename> class Extractor,
-            typename ExistencePolicy = Optional,
-            template <typename...> class List, typename T, typename Path>
+  // 带默认值：T 可显式，也可由默认值推导（Get(path, kDefault)）
+  template <typename T, typename ExistencePolicy = Optional, typename Path>
     requires PathLike<Path>
-  Derived& AcquireArray(const Path& path, List<T>& arr) {
-    static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                      std::is_same_v<ExistencePolicy, Optional>,
-                  "JsonAccessMixin: unsupported ExistencePolicy");
-    static_assert(std::is_same_v<T, typename Extractor<Json>::ValueType>,
-                  "JsonAccessMixin: AcquireArray element type must match "
-                  "Extractor<Json>::ValueType");
-    return AcquireArrayWithExtractor<ExistencePolicy, Extractor<Json>>(path,
-                                                                       arr);
+  [[nodiscard]] T Get(const Path& path, T default_val) {
+    T out{};
+    Put<T, ExistencePolicy>(path, out, std::move(default_val));
+    return out;
   }
 
-  // 将json数组提取到列表容器，由列表推导提取器
-  template <typename ExistencePolicy = Optional,
-            template <typename...> class List, typename T, typename Path>
+  // ---------------- 数组：写入 PutArray / 返回 GetArray ----------------
+  // 写入到列表容器；元素类型 T 由容器推导。
+  // 策略默认与显式写成两个重载：策略没有默认值就不存在「默认实参夹在中间、
+  // 后面还要推导模板模板参数」的组合（MSVC 会在这种形态上报 C2672）。
+  template <typename T, template <typename...> class List, typename Path>
     requires PathLike<Path>
-  Derived& AcquireArray(const Path& path, List<T>& arr) {
-    static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                      std::is_same_v<ExistencePolicy, Optional>,
-                  "JsonAccessMixin: unsupported ExistencePolicy");
-    return AcquireArrayWithExtractor<ExistencePolicy, Extractor<Json, T>>(path,
-                                                                          arr);
+  Derived& PutArray(const Path& path, List<T>& arr) {
+    return FillArray<Optional, Extractor<Json, T>>(path, arr);
   }
 
-  // 将json提取到Map容器，需要显式指定提取器
-  template <template <typename> class Extractor,
-            typename ExistencePolicy = Optional,
-            template <typename...> class Map, typename T, typename Path>
+  template <typename T, typename ExistencePolicy,
+            template <typename...> class List, typename Path>
     requires PathLike<Path>
-  Derived& AcquireMap(const Path& path, Map<std::string, T>& map) {
+  Derived& PutArray(const Path& path, List<T>& arr) {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonAccessMixin: unsupported ExistencePolicy");
-    static_assert(std::is_same_v<T, typename Extractor<Json>::ValueType>,
-                  "JsonAccessMixin: AcquireMap value type must match "
-                  "Extractor<Json>::ValueType");
-    return AcquireMapWithExtractor<ExistencePolicy, Extractor<Json>>(path, map);
+    return FillArray<ExistencePolicy, Extractor<Json, T>>(path, arr);
   }
 
-  // 将json提取到Map容器，由 map 值类型推导提取器
-  template <typename ExistencePolicy = Optional,
-            template <typename...> class Map, typename T, typename Path>
+  // 返回容器：R 是完整容器类型，如 std::vector<std::int64_t>
+  template <typename R, typename ExistencePolicy = Optional, typename Path>
     requires PathLike<Path>
-  Derived& AcquireMap(const Path& path, Map<std::string, T>& map) {
+  [[nodiscard]] R GetArray(const Path& path) {
+    static_assert(requires { typename R::value_type; },
+                  "JsonAccessMixin: GetArray<R> 的 R 必须是容器类型，"
+                  "如 std::vector<std::int64_t>");
+    R out{};
+    FillArray<ExistencePolicy, Extractor<Json, typename R::value_type>>(path,
+                                                                        out);
+    return out;
+  }
+
+  // ---------------- 对象：写入 PutMap / 返回 GetMap ----------------
+  // 写入到 Map<std::string, T>；值类型 T 由 map 推导（同 PutArray 拆两个重载）
+  template <typename T, template <typename...> class Map, typename Path>
+    requires PathLike<Path>
+  Derived& PutMap(const Path& path, Map<std::string, T>& map) {
+    return FillMap<Optional, Extractor<Json, T>>(path, map);
+  }
+
+  template <typename T, typename ExistencePolicy,
+            template <typename...> class Map, typename Path>
+    requires PathLike<Path>
+  Derived& PutMap(const Path& path, Map<std::string, T>& map) {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonAccessMixin: unsupported ExistencePolicy");
-    return AcquireMapWithExtractor<ExistencePolicy, Extractor<Json, T>>(path,
-                                                                        map);
+    return FillMap<ExistencePolicy, Extractor<Json, T>>(path, map);
+  }
+
+  // 返回 Map：R 是完整容器类型，如 std::map<std::string, std::int64_t>
+  template <typename R, typename ExistencePolicy = Optional, typename Path>
+    requires PathLike<Path>
+  [[nodiscard]] R GetMap(const Path& path) {
+    static_assert(requires { typename R::mapped_type; },
+                  "JsonAccessMixin: GetMap<R> 的 R 必须是 map 类型，"
+                  "如 std::map<std::string, std::int64_t>");
+    R out{};
+    FillMap<ExistencePolicy, Extractor<Json, typename R::mapped_type>>(path,
+                                                                      out);
+    return out;
   }
 
  private:
@@ -108,7 +125,11 @@ class JsonAccessMixin {
   Derived& self() noexcept { return static_cast<Derived&>(*this); }
 
   template <typename ExistencePolicy, typename Ext, typename Path, typename T>
-  Derived& AcquireWithExtractor(const Path& path, T& out, T default_val) {
+  Derived& FillValue(const Path& path, T& out, T default_val) {
+    static_assert(
+        !std::is_same_v<T, Required> && !std::is_same_v<T, Optional>,
+        "JsonAccessMixin: 第一个模板参数是数据类型，策略在第二个，"
+        "如 Put<int, Required>(path, out) / Get<int, Required>(path)");
     const auto view = self().template View<ExistencePolicy>(path);
     if (!view.valid()) {
       out = std::move(default_val);
@@ -125,9 +146,12 @@ class JsonAccessMixin {
     return self();
   }
 
-  template <typename ExistencePolicy, typename Ext,
-            template <typename...> class List, typename T, typename Path>
-  Derived& AcquireArrayWithExtractor(const Path& path, List<T>& arr) {
+  // 容器以「完整类型」作参数，内部元素类型取自 Container::value_type，
+  // 不再需要推导模板模板参数（MSVC 更稳）。
+  template <typename ExistencePolicy, typename Ext, typename Container,
+            typename Path>
+  Derived& FillArray(const Path& path, Container& arr) {
+    using T = typename Container::value_type;
     arr.clear();
     auto range = self().template ViewArray<ExistencePolicy>(path);
     if constexpr (requires { arr.reserve(std::size_t{}); }) {
@@ -150,9 +174,10 @@ class JsonAccessMixin {
     return self();
   }
 
-  template <typename ExistencePolicy, typename Ext,
-            template <typename...> class Map, typename T, typename Path>
-  Derived& AcquireMapWithExtractor(const Path& path, Map<std::string, T>& map) {
+  template <typename ExistencePolicy, typename Ext, typename Container,
+            typename Path>
+  Derived& FillMap(const Path& path, Container& map) {
+    using T = typename Container::mapped_type;
     map.clear();
     for (auto&& [key, value_view] :
          self().template ViewObject<ExistencePolicy>(path)) {

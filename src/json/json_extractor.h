@@ -78,24 +78,6 @@ struct Extractor {
   }
 };
 
-template <typename Json, typename T>
-using JsonElement = Extractor<Json, T>;
-
-template <typename Json>
-using JsonInt = JsonElement<Json, int>;
-
-template <typename Json>
-using JsonInt64 = JsonElement<Json, std::int64_t>;
-
-template <typename Json>
-using JsonDouble = JsonElement<Json, double>;
-
-template <typename Json>
-using JsonString = JsonElement<Json, std::string>;
-
-template <typename Json>
-using JsonBool = JsonElement<Json, bool>;
-
 }  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_EXTRACTOR_H

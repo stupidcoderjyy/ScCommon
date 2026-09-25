@@ -8,7 +8,7 @@
 #define SC_JSON_TEST_SUITE_NAME JsonParserNlohmann
 #define SC_JSON_TYPE nlohmann::json
 #define SC_JSON_MAKE_JSON() \
-    SC_JSON_TYPE::parse(R"({"a":{"b":42},"neg":-7,"list":[1,2,3],"s":"hello","d":3.14,"flag":true,"nil":null,"zh":"\u4e2d\u6587","zh_raw":"中文","zh_key":{"\u952e":"\u503c"},"opt_list":[1,null,3],"opt_point":{"x":10,"y":null},"obj_list":[{"id":1},{"id":2}],"point":{"x":10,"y":20},"big":9007199254740993,"big_neg":-9007199254740993})")
+    SC_JSON_TYPE::parse(R"({"a":{"b":42},"neg":-7,"list":[1,2,3],"s":"hello","d":3.14,"flag":true,"nil":null,"zh":"\u4e2d\u6587","zh_raw":"中文","zh_key":{"\u952e":"\u503c"},"mix_res":[{"value":[1.5,2.5]}],"opt_list":[1,null,3],"opt_point":{"x":10,"y":null},"obj_list":[{"id":1},{"id":2}],"point":{"x":10,"y":20},"big":9007199254740993,"big_neg":-9007199254740993})")
 #define SC_JSON_MAKE_JSON_LEAF() SC_JSON_TYPE::parse(R"(42)")
 #include "json_parser_test_suite.inc"
 

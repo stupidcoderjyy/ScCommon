@@ -28,56 +28,56 @@ template <typename Derived, typename Json>
 class JsonTraitsMixin {
  public:
   [[nodiscard]] bool IsObject() const {
-    return Get<bool, &JsonTraits<Json>::IsObject>();
+    return ValueOr<bool, &JsonTraits<Json>::IsObject>();
   }
   [[nodiscard]] bool IsArray() const {
-    return Get<bool, &JsonTraits<Json>::IsArray>();
+    return ValueOr<bool, &JsonTraits<Json>::IsArray>();
   }
   [[nodiscard]] bool IsInt() const {
-    return Get<bool, &JsonTraits<Json>::IsInt>();
+    return ValueOr<bool, &JsonTraits<Json>::IsInt>();
   }
   [[nodiscard]] bool IsUint() const {
-    return Get<bool, &JsonTraits<Json>::IsUint>();
+    return ValueOr<bool, &JsonTraits<Json>::IsUint>();
   }
   [[nodiscard]] bool IsInt64() const {
-    return Get<bool, &JsonTraits<Json>::IsInt64>();
+    return ValueOr<bool, &JsonTraits<Json>::IsInt64>();
   }
   [[nodiscard]] bool IsUint64() const {
-    return Get<bool, &JsonTraits<Json>::IsUint64>();
+    return ValueOr<bool, &JsonTraits<Json>::IsUint64>();
   }
   [[nodiscard]] bool IsDouble() const {
-    return Get<bool, &JsonTraits<Json>::IsDouble>();
+    return ValueOr<bool, &JsonTraits<Json>::IsDouble>();
   }
   [[nodiscard]] bool IsString() const {
-    return Get<bool, &JsonTraits<Json>::IsString>();
+    return ValueOr<bool, &JsonTraits<Json>::IsString>();
   }
   [[nodiscard]] bool IsBool() const {
-    return Get<bool, &JsonTraits<Json>::IsBool>();
+    return ValueOr<bool, &JsonTraits<Json>::IsBool>();
   }
   [[nodiscard]] bool IsNull() const {
-    return Get<bool, &JsonTraits<Json>::IsNull>();
+    return ValueOr<bool, &JsonTraits<Json>::IsNull>();
   }
 
   [[nodiscard]] int GetInt() const {
-    return Get<int, &JsonTraits<Json>::GetInt>();
+    return ValueOr<int, &JsonTraits<Json>::GetInt>();
   }
   [[nodiscard]] unsigned int GetUint() const {
-    return Get<unsigned int, &JsonTraits<Json>::GetUint>();
+    return ValueOr<unsigned int, &JsonTraits<Json>::GetUint>();
   }
   [[nodiscard]] std::int64_t GetInt64() const {
-    return Get<std::int64_t, &JsonTraits<Json>::GetInt64>();
+    return ValueOr<std::int64_t, &JsonTraits<Json>::GetInt64>();
   }
   [[nodiscard]] std::uint64_t GetUint64() const {
-    return Get<std::uint64_t, &JsonTraits<Json>::GetUint64>();
+    return ValueOr<std::uint64_t, &JsonTraits<Json>::GetUint64>();
   }
   [[nodiscard]] double GetDouble() const {
-    return Get<double, &JsonTraits<Json>::GetDouble>();
+    return ValueOr<double, &JsonTraits<Json>::GetDouble>();
   }
   [[nodiscard]] std::string GetString() const {
-    return Get<std::string, &JsonTraits<Json>::GetString>();
+    return ValueOr<std::string, &JsonTraits<Json>::GetString>();
   }
   [[nodiscard]] bool GetBool() const {
-    return Get<bool, &JsonTraits<Json>::GetBool>();
+    return ValueOr<bool, &JsonTraits<Json>::GetBool>();
   }
 
   [[nodiscard]] const Json* TryGetChild(std::string_view key) const {
@@ -86,7 +86,7 @@ class JsonTraitsMixin {
   }
 
   [[nodiscard]] std::size_t GetArraySize() const {
-    return Get<std::size_t, &JsonTraits<Json>::GetArraySize>();
+    return ValueOr<std::size_t, &JsonTraits<Json>::GetArraySize>();
   }
 
   [[nodiscard]] const Json& GetArrayElement(std::size_t index) const {
@@ -95,7 +95,7 @@ class JsonTraitsMixin {
   }
 
   [[nodiscard]] std::string ToString() const {
-    return Get<std::string, &JsonTraits<Json>::ToString>();
+    return ValueOr<std::string, &JsonTraits<Json>::ToString>();
   }
 
   [[nodiscard]] JsonTraits<Json>::MemberIterator MemberBegin() const {
@@ -116,7 +116,7 @@ class JsonTraitsMixin {
   }
 
   template <typename T, T (*Getter)(const Json&)>
-  [[nodiscard]] T Get() const {
+  [[nodiscard]] T ValueOr() const {
     auto* n = node();
     return n ? Getter(*n) : T{};
   }
