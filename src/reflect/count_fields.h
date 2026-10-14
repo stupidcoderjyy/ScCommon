@@ -5,6 +5,8 @@
 #ifndef SCCOMMON_PFR_H
 #define SCCOMMON_PFR_H
 
+#include "def.h"
+
 namespace sc::reflect {
 
 struct Any {
@@ -22,8 +24,6 @@ struct IsBracesConstructible<
     T, std::index_sequence<I...>,
     std::void_t<decltype(T{(static_cast<void>(I), Any{})...})>>
     : std::true_type {};
-
-inline constexpr std::size_t kMaxFields = 64;
 
 template <typename T, std::size_t Lo = 0, std::size_t Hi = kMaxFields>
 constexpr std::size_t CountFieldsImpl() {
