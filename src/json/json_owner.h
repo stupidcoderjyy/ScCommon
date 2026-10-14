@@ -44,17 +44,16 @@ class JsonOwnerStorage {
   void MarkValid() { valid_ = true; }
 
   [[nodiscard]] std::string ToString() const {
-    return valid_ ? JsonTraits<Json>::ToString(View()) : std::string{};
+    return valid_ ? JsonTraits<Json>::ToString(ConstRef()) : std::string{};
   }
 
   void ToStream(std::ostream& os) const {
-    JsonTraits<Json>::ToStream(os, View());
+    JsonTraits<Json>::ToStream(os, ConstRef());
   }
 
   [[nodiscard]] bool Valid() const noexcept { return valid_; }
-  Json* Ptr() { return valid_ ? &json_ : nullptr; }
-  const Json* ConstPtr() const { return valid_ ? &json_ : nullptr; }
-  const Json& View() const { return json_; }
+  Json& Ref() { return json_; }
+  const Json& ConstRef() const { return json_; }
   ErrorHandler& err_handler() { return err_handler_; }
   const ErrorHandler& err_handler() const { return err_handler_; }
 

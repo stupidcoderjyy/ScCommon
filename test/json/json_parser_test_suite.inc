@@ -135,7 +135,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, DefaultConstructedViewIsInvalid) {
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromText) {
-  JsonView<SC_JSON_TYPE> view(std::string_view(R"({"a":{"b":42},"s":"hi"})"));
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({"a":{"b":42},"s":"hi"})"));
+  JsonView<SC_JSON_TYPE> view(owner);
   EXPECT_TRUE(view.IsObject());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
   EXPECT_EQ(std::string("hi"), view.View<Required>("s"_path).GetString());
@@ -143,7 +144,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromText) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidTextThrows) {
   EXPECT_THROW(
-      (JsonView<SC_JSON_TYPE>(std::string_view("{oops"))),
+      (JsonOwner<SC_JSON_TYPE>(std::string_view("{oops"))),
       std::runtime_error);
 }
 
@@ -156,16 +157,17 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidTextCallsHandler) {
   // （nlohmann 会重新抛出自身的 parse_error，jsoncpp/rapidjson 抛 std::runtime_error），
   // 所以这里只要求抛出 std::exception。
   EXPECT_THROW(
-      (JsonView<SC_JSON_TYPE, ErrorHandler>(std::string_view("{oops"), handler)),
+      (JsonOwner<SC_JSON_TYPE, ErrorHandler>(std::string_view("{oops"), handler)),
       std::exception);
   EXPECT_EQ(1u, ErrorHandler::parse_errors.size());
 }
 
-// std::string 重载：jsoncpp / nlohmann 的 Json 本身也能由 string 构造，
-// 该重载保证 std::string 实参按“文本”解析，而不是被当成节点。
+// std::string 实参按“文本”解析：JsonOwner 的文本构造需显式取 string_view，
+// 否则会被 Json 值类型的转换构造函数抢走。
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdString) {
   const std::string text = R"({"a":{"b":42},"s":"hi"})";
-  JsonView<SC_JSON_TYPE> view(text);
+  JsonOwner<SC_JSON_TYPE> owner{std::string_view(text)};
+  JsonView<SC_JSON_TYPE> view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_TRUE(view.IsObject());  // 若被当成节点，这里会是字符串节点
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
@@ -177,15 +179,18 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdString) {
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromTemporaryStdString) {
-  // 右值：临时 string 只在构造期间被读取，解析结果由 view 自己持有
-  JsonView<SC_JSON_TYPE> view(std::string(R"({"a":{"b":42}})"));
+  // 右值：临时 string 只在构造期间被读取，解析结果由 owner 自己持有
+  JsonOwner<SC_JSON_TYPE> owner(
+      std::string_view(std::string(R"({"a":{"b":42}})")));
+  JsonView<SC_JSON_TYPE> view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStdStringThrows) {
   const std::string bad = "{oops";
-  EXPECT_THROW((JsonView<SC_JSON_TYPE>(bad)), std::runtime_error);
+  EXPECT_THROW((JsonOwner<SC_JSON_TYPE>(std::string_view(bad))),
+               std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdStringUsesGivenHandler) {
@@ -194,7 +199,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdStringUsesGivenHandler) {
 
   const std::string bad = "{oops";
   try {
-    JsonView<SC_JSON_TYPE, Handler> view(bad, Handler("req-003"));
+    JsonOwner<SC_JSON_TYPE, Handler> owner(std::string_view(bad),
+                                           Handler("req-003"));
     FAIL() << "expected ContextException";
   } catch (const Exception& e) {
     EXPECT_EQ(std::string("req-003"), e.RequestId());
@@ -202,10 +208,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdStringUsesGivenHandler) {
   }
 }
 
-// 输入流构造：解析结果由 view 自己持有，流只在构造期间被读取
+// 输入流构造：解析结果由 owner 持有，流只在构造期间被读取
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStream) {
   std::istringstream input(R"({"a":{"b":42},"s":"hi"})");
-  JsonView<SC_JSON_TYPE> view(input);
+  JsonOwner<SC_JSON_TYPE> owner(input);
+  JsonView<SC_JSON_TYPE> view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_TRUE(view.IsObject());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
@@ -221,7 +228,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromMultilineStream) {
     "a": { "b": 42 },
     "list": [1, 2, 3]
   })");
-  JsonView<SC_JSON_TYPE> view(input);
+  JsonOwner<SC_JSON_TYPE> owner(input);
+  JsonView<SC_JSON_TYPE> view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 
@@ -230,12 +238,13 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromMultilineStream) {
   EXPECT_EQ(2, (*(list.begin() + 1)).GetInt());
 }
 
-TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStreamOutlivesStream) {
-  // 流销毁后 view 仍然有效：解析结果的所有权在 view 手里
-  JsonView<SC_JSON_TYPE> view = [] {
+TEST(SC_JSON_TEST_SUITE_NAME, OwnerOutlivesStream) {
+  // 流销毁后 owner 仍然有效：解析结果的所有权在 owner 手里
+  JsonOwner<SC_JSON_TYPE> owner = [] {
     std::istringstream input(R"({"a":{"b":42}})");
-    return JsonView<SC_JSON_TYPE>(input);
+    return JsonOwner<SC_JSON_TYPE>(input);
   }();
+  JsonView<SC_JSON_TYPE> view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 }
@@ -249,7 +258,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ParserFromStream) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStreamThrows) {
   std::istringstream input("{oops");
-  EXPECT_THROW((JsonView<SC_JSON_TYPE>(input)), std::runtime_error);
+  EXPECT_THROW((JsonOwner<SC_JSON_TYPE>(input)), std::runtime_error);
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStreamCallsHandler) {
@@ -259,7 +268,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStreamCallsHandler) {
   // 与文本构造一致：处理器被调用是核心约定；处理器吞掉异常后各库抛出的具体
   // 异常类型不完全一致，所以这里只要求抛出 std::exception。
   std::istringstream input("{oops");
-  EXPECT_THROW((JsonView<SC_JSON_TYPE, ErrorHandler>(input, ErrorHandler{})),
+  EXPECT_THROW((JsonOwner<SC_JSON_TYPE, ErrorHandler>(input, ErrorHandler{})),
                std::exception);
   EXPECT_EQ(1u, ErrorHandler::parse_errors.size());
 }
@@ -270,7 +279,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStreamUsesGivenHandler) {
 
   std::istringstream input("{oops");
   try {
-    JsonView<SC_JSON_TYPE, Handler> view(input, Handler("req-004"));
+    JsonOwner<SC_JSON_TYPE, Handler> owner(input, Handler("req-004"));
     FAIL() << "expected ContextException";
   } catch (const Exception& e) {
     EXPECT_EQ(std::string("req-004"), e.RequestId());
@@ -429,7 +438,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewIsZeroCopyAndComposable) {
   // 元素指向底层文档中的节点（零拷贝）
   const SC_JSON_TYPE* list_node = JsonTraits<SC_JSON_TYPE>::TryGetChild(json, "list");
   ASSERT_NE(nullptr, list_node);
-  EXPECT_EQ(&(*(range.begin() + 1)).json(),
+  EXPECT_EQ((*(range.begin() + 1)).node(),
             &JsonTraits<SC_JSON_TYPE>::GetArrayElement(*list_node, 1));
 }
 
@@ -1311,7 +1320,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsToString) {
   // 整篇文档：序列化结果可以重新解析，且再次序列化稳定（键序、数字精度都稳定）
   const std::string text = view.ToString();
   EXPECT_FALSE(text.empty());
-  JsonView<SC_JSON_TYPE> reparsed(text);
+  JsonOwner<SC_JSON_TYPE> reparsed_owner{std::string_view(text)};
+  JsonView<SC_JSON_TYPE> reparsed(reparsed_owner);
   EXPECT_EQ(42, reparsed.View<Required>("a.b"_path).GetInt());
   EXPECT_EQ(std::string("hello"), reparsed.View<Required>("s"_path).GetString());
   EXPECT_TRUE(reparsed.View<Required>("nil"_path).IsNull());
@@ -1346,7 +1356,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsToStringKeepsUtf8) {
   EXPECT_EQ(std::string::npos, text.find("\\u952e"));
 
   // 4) 序列化 → 再解析 → 再序列化，中文与键都不丢字节
-  JsonView<SC_JSON_TYPE> reparsed(text);
+  JsonOwner<SC_JSON_TYPE> reparsed_owner{std::string_view(text)};
+  JsonView<SC_JSON_TYPE> reparsed(reparsed_owner);
   EXPECT_EQ(kZh, reparsed.View<Required>("zh"_path).GetString());
   EXPECT_EQ(kZh, reparsed.View<Required>("zh_raw"_path).GetString());
   EXPECT_EQ(kValue,

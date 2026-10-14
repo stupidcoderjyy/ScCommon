@@ -137,7 +137,7 @@ class JsonAccessMixin {
       out = std::move(default_val);
       return self();
     }
-    if (T value{}; Ext::Extract(view.json(), value)) {
+    if (T value{}; Ext::Extract(*view.node(), value)) {
       out = std::move(value);
     } else {
       if constexpr (std::is_same_v<ExistencePolicy, Required>) {
@@ -162,7 +162,7 @@ class JsonAccessMixin {
     std::size_t i = 0;
     for (auto&& element : range) {
       T value{};
-      if (!Ext::Extract(element.json(), value)) {
+      if (!Ext::Extract(*element.node(), value)) {
         std::string element_path = detail::PathString(path);
         element_path += '[';
         detail::AppendNumber(element_path, i);
@@ -184,7 +184,7 @@ class JsonAccessMixin {
     for (auto&& [key, value_view] :
          self().template ViewObject<ExistencePolicy>(path)) {
       T value{};
-      if (!Ext::Extract(value_view.json(), value)) {
+      if (!Ext::Extract(*value_view.node(), value)) {
         std::string member_path = detail::PathString(path);
         if (!member_path.empty()) {
           member_path += '.';
