@@ -252,6 +252,23 @@ static_assert(sc::reflect::RegisteredFields<Mixed>() == 3);
 static_assert(sc::reflect::GetFieldName<0, Point>() == "x");
 static_assert(sc::reflect::GetFieldName<1, Mixed>() == "s");
 
+// 反射判定与聚合约束
+static_assert(sc::reflect::Registered<Point>);
+static_assert(!sc::reflect::Registered<Unregistered>);
+static_assert(sc::reflect::ReflectAggregate<Point>);
+static_assert(sc::reflect::ReflectAggregate<Mixed>);
+static_assert(!sc::reflect::ReflectAggregate<int>);
+static_assert(!sc::reflect::ReflectAggregate<Unregistered&>);
+
+TEST(ReflectConstraint, ConceptAndFallback) {
+  EXPECT_TRUE((sc::reflect::Registered<Point>));
+  EXPECT_FALSE((sc::reflect::Registered<Unregistered>));
+  EXPECT_TRUE((sc::reflect::ReflectAggregate<Mixed>));
+  EXPECT_FALSE((sc::reflect::ReflectAggregate<int>));
+  // 未注册类型不走元信息路径，由 GetField 回落到 PFR
+  EXPECT_FALSE((sc::reflect::Registered<Unregistered>));
+}
+
 TEST(ReflectDescriptor, RegistrationDetection) {
   EXPECT_TRUE(sc::reflect::is_registered_v<Point>);
   EXPECT_FALSE(sc::reflect::is_registered_v<Unregistered>);

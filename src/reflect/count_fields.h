@@ -45,6 +45,8 @@ constexpr std::size_t CountFieldsImpl() {
 
 template <typename T>
 constexpr std::size_t FieldCount() {
+  static_assert(!std::is_reference_v<T>,
+                "reflect: FieldCount requires an object type, not a reference");
   return detail::CountFieldsImpl<T>();
 }
 

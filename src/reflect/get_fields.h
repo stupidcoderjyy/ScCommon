@@ -29,10 +29,21 @@ struct IsRegistered<T, std::void_t<decltype(Descriptor<T>::fields())>>
 template <typename T>
 inline constexpr bool is_registered_v = IsRegistered<T>::value;
 
+// 反射判定：已注册类型走 Descriptor 元信息
+template <typename T>
+concept Registered = is_registered_v<T>;
+
+// 反射层只支持聚合类型
+template <typename T>
+concept ReflectAggregate = std::is_aggregate_v<T> && !std::is_reference_v<T>;
+
 // 已注册类型的字段数
 template <typename T>
 constexpr std::size_t RegisteredFields() {
   static_assert(is_registered_v<T>, "reflect: type is not registered");
+  static_assert(ReflectAggregate<T>,
+                "reflect: only aggregate types are supported (base classes, "
+                "private members, reference or bit-field members are unsafe)");
   return std::tuple_size_v<decltype(Descriptor<T>::fields())>;
 }
 
@@ -48,8 +59,8 @@ template <std::size_t I, typename T>
 constexpr auto& GetFieldImpl(T& value) noexcept {
   using U = std::remove_cv_t<T>;
   constexpr auto n = FieldCount<U>();
-  static_assert(I < n, "Index out of range");
-  static_assert(n > 0, "No fields");
+  static_assert(I < n, "reflect: Index out of range");
+  static_assert(n > 0, "reflect: No fields");
   if constexpr (n == 1) {
     auto& [a] = value;
     return std::get<I>(std::tie(a));
@@ -127,6 +138,10 @@ constexpr auto& GetFieldImpl(T& value) noexcept {
 
 template <std::size_t I, typename T>
 constexpr auto GetFieldInfo() {
+  static_assert(is_registered_v<T>, "reflect: type is not registered");
+  static_assert(ReflectAggregate<T>,
+                "reflect: only aggregate types are supported (base classes, "
+                "private members, reference or bit-field members are unsafe)");
   static_assert(I < RegisteredFields<T>(), "reflect: index out of range");
   return std::get<I>(Descriptor<T>::fields());
 }
