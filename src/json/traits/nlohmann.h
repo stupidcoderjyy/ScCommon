@@ -171,7 +171,8 @@ class JsonParser<nlohmann::json, ErrorHandler> {
   nlohmann::json json_;
 };
 
-// JsonOwner 的 nlohmann 偏特化：只补三种构造，特殊成员函数继承自 JsonOwnerStorage
+// JsonOwner 的 nlohmann 偏特化：只补三种构造，特殊成员函数继承自
+// JsonOwnerStorage
 template <typename ErrorHandler>
 class JsonOwner<nlohmann::json, ErrorHandler>
     : public JsonOwnerStorage<nlohmann::json, ErrorHandler> {

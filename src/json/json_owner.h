@@ -6,6 +6,7 @@
 #define SCCOMMON_JSON_OWNER_H
 
 #include "util/json_error.h"
+#include "json_traits.h"
 
 namespace sc::json {
 
@@ -18,13 +19,16 @@ struct OwnedJson {
 template <typename Json>
 using OwnedJsonT = OwnedJson<Json>::Type;
 
-template<typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
 class JsonOwnerStorage {
-public:
+ public:
   JsonOwnerStorage() = default;
   JsonOwnerStorage(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage& operator=(const JsonOwnerStorage&) noexcept = delete;
-  JsonOwnerStorage(JsonOwnerStorage&& o) noexcept: json_(std::move(o.json_)), err_handler_(std::move(o.err_handler_)), valid_(o.valid_) {
+  JsonOwnerStorage(JsonOwnerStorage&& o) noexcept
+      : json_(std::move(o.json_)),
+        err_handler_(std::move(o.err_handler_)),
+        valid_(o.valid_) {
     o.valid_ = false;
   }
   JsonOwnerStorage& operator=(JsonOwnerStorage&& o) noexcept {
@@ -52,6 +56,7 @@ public:
   const Json* ConstPtr() const { return valid_ ? &json_ : nullptr; }
   const Json& View() const { return json_; }
   ErrorHandler& err_handler() { return err_handler_; }
+  const ErrorHandler& err_handler() const { return err_handler_; }
 
   explicit operator bool() const { return valid_; }
 
@@ -65,11 +70,12 @@ template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
 class JsonOwner : public JsonOwnerStorage<Json, ErrorHandler> {};
 
 template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
-std::ostream& operator<<(std::ostream& os, const JsonOwner<Json, ErrorHandler>& owner) {
+std::ostream& operator<<(std::ostream& os,
+                         const JsonOwner<Json, ErrorHandler>& owner) {
   owner.ToStream(os);
   return os;
 }
 
-}
+}  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_OWNER_H

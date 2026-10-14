@@ -225,8 +225,9 @@ class JsonOwner<rapidjson::Value, ErrorHandler>
  public:
   explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
     this->err_handler() = std::move(handler);
-    this->json_.template Parse<rapidjson::kParseDefaultFlags,
-                               rapidjson::UTF8<>>(json.data(), json.size());
+    this->json_
+        .template Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(
+            json.data(), json.size());
     if (this->json_.HasParseError()) {
       std::runtime_error e("rapidjson parse error at offset " +
                            std::to_string(this->json_.GetErrorOffset()));

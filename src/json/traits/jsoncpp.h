@@ -56,8 +56,8 @@ struct JsonTraits<Json::Value> {
   }
 
   static std::string ToString(const Json& json) {
-    // 紧凑序列化。jsoncpp 默认把非 ASCII 转义成 \uXXXX，这里改为直接输出 UTF-8，
-    // 与 nlohmann / rapidjson 的输出保持一致（需要 jsoncpp >= 1.9.4）
+    // 紧凑序列化。jsoncpp 默认把非 ASCII 转义成 \uXXXX，这里改为直接输出
+    // UTF-8， 与 nlohmann / rapidjson 的输出保持一致（需要 jsoncpp >= 1.9.4）
     ::Json::StreamWriterBuilder builder;
     builder["indentation"] = "";
     builder["emitUTF8"] = true;
@@ -153,7 +153,8 @@ class JsonParser<Json::Value, ErrorHandler> {
   Json::Value json_;
 };
 
-// JsonOwner 的 JsonCpp 偏特化：只补三种构造，特殊成员函数继承自 JsonOwnerStorage
+// JsonOwner 的 JsonCpp 偏特化：只补三种构造，特殊成员函数继承自
+// JsonOwnerStorage
 template <typename ErrorHandler>
 class JsonOwner<Json::Value, ErrorHandler>
     : public JsonOwnerStorage<Json::Value, ErrorHandler> {

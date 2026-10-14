@@ -5,7 +5,6 @@
 #ifndef SCCOMMON_JSON_VIEW_H
 #define SCCOMMON_JSON_VIEW_H
 
-#include <istream>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -55,6 +54,10 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
       : parser_(std::make_shared<JsonParser<Json, ErrorHandler>>(is, handler)),
         json_(&parser_->json()),
         handler_(std::move(handler)) {}
+  explicit JsonView(const Json* json, ErrorHandler handler = {})
+      : json_(json), handler_(std::move(handler)) {}
+  explicit JsonView(const JsonOwner<Json, ErrorHandler>& json)
+      : JsonView(json.ConstPtr(), json.err_handler()) {}
 
   // view 可拷贝、可移动：拥有解析结果时由 shared_ptr 共享所有权（仅文本构造的
   // view 才有它）
