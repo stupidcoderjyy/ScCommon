@@ -80,9 +80,10 @@ class JsonAccessMixin {
   template <typename R, typename ExistencePolicy = Optional, typename Path>
     requires PathLike<Path>
   [[nodiscard]] R GetArray(const Path& path) {
-    static_assert(requires { typename R::value_type; },
-                  "JsonAccessMixin: GetArray<R> 的 R 必须是容器类型，"
-                  "如 std::vector<std::int64_t>");
+    static_assert(
+        requires { typename R::value_type; },
+        "JsonAccessMixin: GetArray<R> 的 R 必须是容器类型，"
+        "如 std::vector<std::int64_t>");
     R out{};
     FillArray<ExistencePolicy, Extractor<Json, typename R::value_type>>(path,
                                                                         out);
@@ -111,12 +112,13 @@ class JsonAccessMixin {
   template <typename R, typename ExistencePolicy = Optional, typename Path>
     requires PathLike<Path>
   [[nodiscard]] R GetMap(const Path& path) {
-    static_assert(requires { typename R::mapped_type; },
-                  "JsonAccessMixin: GetMap<R> 的 R 必须是 map 类型，"
-                  "如 std::map<std::string, std::int64_t>");
+    static_assert(
+        requires { typename R::mapped_type; },
+        "JsonAccessMixin: GetMap<R> 的 R 必须是 map 类型，"
+        "如 std::map<std::string, std::int64_t>");
     R out{};
     FillMap<ExistencePolicy, Extractor<Json, typename R::mapped_type>>(path,
-                                                                      out);
+                                                                       out);
     return out;
   }
 

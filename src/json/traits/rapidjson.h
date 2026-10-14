@@ -7,11 +7,11 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
+#include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
 #include <cstddef>
-#include <istream>
 #include <iterator>
 #include <limits>
 #include <optional>
@@ -20,6 +20,7 @@
 #include <string_view>
 #include <utility>
 
+#include "../json_owner.h"
 #include "../json_traits.h"
 
 namespace sc::json {
@@ -119,12 +120,17 @@ struct JsonTraits<rapidjson::Value> {
     return json[static_cast<rapidjson::SizeType>(index)];
   }
 
-  // Writer 默认紧凑输出（无缩进、无多余空白）
   static std::string ToString(const Json& json) {
     rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    rapidjson::Writer writer(buffer);
     json.Accept(writer);
     return buffer.GetString();
+  }
+
+  static void ToStream(std::ostream& os, const Json& json) {
+    rapidjson::OStreamWrapper wrapper(os);
+    rapidjson::Writer writer(wrapper);
+    json.Accept(writer);
   }
 
   // Json迭代器 (C++20)
@@ -205,6 +211,53 @@ class JsonParser<rapidjson::Value, ErrorHandler> {
 
  private:
   std::optional<rapidjson::Document> doc_;
+};
+
+// rapidjson::Value本身不持有数据
+template <>
+struct OwnedJson<rapidjson::Value> {
+  using Type = rapidjson::Document;
+};
+
+template <typename ErrorHandler>
+class JsonOwner<rapidjson::Value, ErrorHandler>
+    : public JsonOwnerStorage<rapidjson::Value, ErrorHandler> {
+ public:
+  explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    this->json_.template Parse<rapidjson::kParseDefaultFlags,
+                               rapidjson::UTF8<>>(json.data(), json.size());
+    if (this->json_.HasParseError()) {
+      std::runtime_error e("rapidjson parse error at offset " +
+                           std::to_string(this->json_.GetErrorOffset()));
+      this->err_handler().OnJsonParseError(json, e);
+      throw std::move(e);
+    }
+    this->MarkValid();
+  }
+
+  explicit JsonOwner(std::istream& is, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    rapidjson::IStreamWrapper wrapper(is);
+    this->json_.ParseStream(wrapper);
+    if (this->json_.HasParseError()) {
+      std::runtime_error e("rapidjson parse error at offset " +
+                           std::to_string(this->json_.GetErrorOffset()));
+      this->err_handler().OnJsonParseError(std::string_view{}, e);
+      throw std::move(e);
+    }
+    this->MarkValid();
+  }
+
+  explicit JsonOwner(rapidjson::Document&& doc, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    this->json_ = std::move(doc);
+    this->MarkValid();
+  }
+
+  rapidjson::Document::AllocatorType& GetAllocator() {
+    return this->json_.GetAllocator();
+  }
 };
 
 }  // namespace sc::json

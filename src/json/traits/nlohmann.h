@@ -14,6 +14,7 @@
 #include <string_view>
 #include <utility>
 
+#include "../json_owner.h"
 #include "../json_traits.h"
 
 namespace sc::json {
@@ -96,8 +97,9 @@ struct JsonTraits<nlohmann::json> {
     return json.at(index);
   }
 
-  // dump() 默认紧凑输出
   static std::string ToString(const Json& json) { return json.dump(); }
+
+  static void ToStream(std::ostream& os, const Json& json) { os << json; }
 
   // Json迭代器 (C++20)
   struct MemberIterator {
@@ -167,6 +169,43 @@ class JsonParser<nlohmann::json, ErrorHandler> {
 
  private:
   nlohmann::json json_;
+};
+
+// JsonOwner 的 nlohmann 偏特化：只补三种构造，特殊成员函数继承自 JsonOwnerStorage
+template <typename ErrorHandler>
+class JsonOwner<nlohmann::json, ErrorHandler>
+    : public JsonOwnerStorage<nlohmann::json, ErrorHandler> {
+ public:
+  explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    try {
+      this->json_ =
+          nlohmann::json::parse(json.data(), json.data() + json.size());
+    } catch (std::exception& e) {
+      this->err_handler().OnJsonParseError(json, e);
+      throw;
+    }
+    this->MarkValid();
+  }
+
+  explicit JsonOwner(std::istream& is, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    try {
+      this->json_ = nlohmann::json::parse(is);
+    } catch (std::exception& e) {
+      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
+      this->err_handler().OnJsonParseError(std::string_view{}, e);
+      throw;
+    }
+    this->MarkValid();
+  }
+
+  // 夺舍外部 json：不解析、不抛解析异常，只接管所有权
+  explicit JsonOwner(nlohmann::json&& json, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    this->json_ = std::move(json);
+    this->MarkValid();
+  }
 };
 
 }  // namespace sc::json

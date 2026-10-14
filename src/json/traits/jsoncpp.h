@@ -9,7 +9,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <istream>
 #include <iterator>
 #include <memory>
 #include <stdexcept>
@@ -17,6 +16,7 @@
 #include <string_view>
 #include <utility>
 
+#include "../json_owner.h"
 #include "../json_traits.h"
 
 namespace sc::json {
@@ -55,13 +55,21 @@ struct JsonTraits<Json::Value> {
     return json[static_cast<Json::ArrayIndex>(index)];
   }
 
-  // 紧凑序列化。jsoncpp 默认把非 ASCII 转义成 \uXXXX，这里改为直接输出 UTF-8，
-  // 与 nlohmann / rapidjson 的输出保持一致（需要 jsoncpp >= 1.9.4）
   static std::string ToString(const Json& json) {
+    // 紧凑序列化。jsoncpp 默认把非 ASCII 转义成 \uXXXX，这里改为直接输出 UTF-8，
+    // 与 nlohmann / rapidjson 的输出保持一致（需要 jsoncpp >= 1.9.4）
     ::Json::StreamWriterBuilder builder;
     builder["indentation"] = "";
     builder["emitUTF8"] = true;
     return ::Json::writeString(builder, json);
+  }
+
+  static void ToStream(std::ostream& os, const Json& json) {
+    ::Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";
+    builder["emitUTF8"] = true;
+    std::unique_ptr<::Json::StreamWriter> writer(builder.newStreamWriter());
+    writer->write(json, &os);
   }
 
   // Json迭代器 (C++20)
@@ -143,6 +151,49 @@ class JsonParser<Json::Value, ErrorHandler> {
 
  private:
   Json::Value json_;
+};
+
+// JsonOwner 的 JsonCpp 偏特化：只补三种构造，特殊成员函数继承自 JsonOwnerStorage
+template <typename ErrorHandler>
+class JsonOwner<Json::Value, ErrorHandler>
+    : public JsonOwnerStorage<Json::Value, ErrorHandler> {
+ public:
+  explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    Json::CharReaderBuilder builder;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    Json::Value parsed;
+    std::string errors;
+    if (!reader->parse(json.data(), json.data() + json.size(), &parsed,
+                       &errors)) {
+      std::runtime_error e("jsoncpp parse error: " + errors);
+      this->err_handler().OnJsonParseError(json, e);
+      throw std::move(e);
+    }
+    this->json_ = std::move(parsed);
+    this->MarkValid();
+  }
+
+  explicit JsonOwner(std::istream& is, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    Json::Value parsed;
+    std::string errors;
+    if (Json::CharReaderBuilder builder;
+        !::Json::parseFromStream(builder, is, &parsed, &errors)) {
+      std::runtime_error e("jsoncpp parse error: " + errors);
+      this->err_handler().OnJsonParseError(std::string_view{}, e);
+      throw std::move(e);
+    }
+    this->json_ = std::move(parsed);
+    this->MarkValid();
+  }
+
+  // 夺舍外部 json：不解析、不抛解析异常，只接管所有权
+  explicit JsonOwner(Json::Value&& value, ErrorHandler handler = {}) {
+    this->err_handler() = std::move(handler);
+    this->json_ = std::move(value);
+    this->MarkValid();
+  }
 };
 
 }  // namespace sc::json

@@ -41,8 +41,8 @@ struct JsonTraits {
   static std::size_t GetArraySize(const Json&) noexcept;
   static const Json& GetArrayElement(const Json&, std::size_t index) noexcept;
 
-  // 序列化可能抛（非法 UTF-8、分配失败等），因此不标 noexcept
   static std::string ToString(const Json&);
+  static void ToStream(std::ostream& os, const Json&);
 
   // 迭代器接口，由各库特化提供实际类型
   using MemberIterator = void;

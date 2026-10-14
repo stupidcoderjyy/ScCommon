@@ -6,8 +6,8 @@
 #define SCCOMMON_JSON_ARRAY_VIEW_H
 
 #include "../json_view.h"
-#include "../util/json_error.h"
 #include "../util/json_detail.h"
+#include "../util/json_error.h"
 
 namespace sc::json {
 
@@ -66,7 +66,9 @@ class JsonArrayView {
       copy += offset;
       return copy;
     }
-    iterator operator-(difference_type offset) const { return *this + (-offset); }
+    iterator operator-(difference_type offset) const {
+      return *this + (-offset);
+    }
     friend iterator operator+(difference_type offset, const iterator& it) {
       return it + offset;
     }

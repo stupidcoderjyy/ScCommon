@@ -1,8 +1,6 @@
 enable_testing()
 include(GoogleTest)
 
-# 每个 JSON 库单独一个 gtest 可执行文件；
-# 新增 JSON 库时复制测试源文件并加入 TEST_TARGETS 即可。
 set(TEST_SRC_JSON_NLOHMANN json/json_parser_nlohmann_test.cpp)
 set(TEST_SRC_JSON_RAPIDJSON json/json_parser_rapidjson_test.cpp)
 set(TEST_SRC_JSON_JSONCPP json/json_parser_jsoncpp_test.cpp)
