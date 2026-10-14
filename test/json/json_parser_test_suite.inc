@@ -22,6 +22,7 @@
 #include "json/json_view.hpp"
 #include "json/view/json_array_view.h"
 #include "json/view/json_object_view.h"
+#include "reflect/pfr.h"
 
 using namespace sc::json;
 

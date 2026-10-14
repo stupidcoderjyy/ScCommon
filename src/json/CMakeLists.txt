@@ -22,14 +22,9 @@ target_include_directories(${TARGET} INTERFACE
 target_link_libraries(${TARGET} INTERFACE
     nlohmann_json::nlohmann_json
     JsonCpp::JsonCpp
+    sc::reflect
 )
 
-# 默认安装路径
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(CMAKE_INSTALL_PREFIX "${LIB_PREFIX_PATH}" CACHE PATH "Install prefix" FORCE)
-endif()
-
-set(SC_JSON_VERSION "2.3")
 set(SC_JSON_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/json-${SC_JSON_VERSION}/include")
 
 # 只安装库头文件：逐个显式列出，不安装测试代码，也不安装 CMakeLists.txt
