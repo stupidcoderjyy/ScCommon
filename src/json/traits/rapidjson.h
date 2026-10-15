@@ -67,48 +67,127 @@ template <>
 struct JsonAccessTraits<rapidjson::Value> {
   using Json = rapidjson::Value;
 
-  static int GetInt(const Json& json) {
-    if (json.IsInt64()) {
-      return static_cast<int>(json.GetInt64());
+
+  static bool GetInt(const Json& json, int& out) {
+    if (json.IsInt()) {
+      out = json.GetInt();
+      return true;
     }
     if (json.IsUint()) {
-      return static_cast<int>(json.GetUint());
-    }
-    return json.GetInt();
-  }
-  static unsigned int GetUint(const Json& json) {
-    if (json.IsUint()) {
-      return json.GetUint();
+      const unsigned int v = json.GetUint();
+      if (v > static_cast<unsigned int>((std::numeric_limits<int>::max)())) {
+        return false;
+      }
+      out = static_cast<int>(v);
+      return true;
     }
     if (json.IsInt64()) {
-      return static_cast<unsigned int>(json.GetInt64());
+      const std::int64_t v = json.GetInt64();
+      if (v < (std::numeric_limits<int>::min)() ||
+          v > (std::numeric_limits<int>::max)()) {
+        return false;
+      }
+      out = static_cast<int>(v);
+      return true;
     }
-    return static_cast<unsigned int>(json.GetInt());
+    return false;
   }
-  static std::int64_t GetInt64(const Json& json) {
+  static bool GetUint(const Json& json, unsigned int& out) {
+    if (json.IsUint()) {
+      out = json.GetUint();
+      return true;
+    }
+    if (json.IsInt()) {
+      const int v = json.GetInt();
+      if (v < 0) {
+        return false;
+      }
+      out = static_cast<unsigned int>(v);
+      return true;
+    }
     if (json.IsInt64()) {
-      return json.GetInt64();
+      const std::int64_t v = json.GetInt64();
+      if (v < 0 || v > static_cast<std::int64_t>(
+                           (std::numeric_limits<unsigned int>::max)())) {
+        return false;
+      }
+      out = static_cast<unsigned int>(v);
+      return true;
+    }
+    return false;
+  }
+  static bool GetInt64(const Json& json, std::int64_t& out) {
+    if (json.IsInt64()) {
+      out = json.GetInt64();
+      return true;
+    }
+    if (json.IsInt()) {
+      out = json.GetInt();
+      return true;
     }
     if (json.IsUint()) {
-      return json.GetUint();
+      out = json.GetUint();
+      return true;
     }
-    return json.GetInt();
-  }
-  static std::uint64_t GetUint64(const Json& json) {
     if (json.IsUint64()) {
-      return json.GetUint64();
+      const std::uint64_t v = json.GetUint64();
+      if (v > static_cast<std::uint64_t>(
+                  (std::numeric_limits<std::int64_t>::max)())) {
+        return false;
+      }
+      out = static_cast<std::int64_t>(v);
+      return true;
+    }
+    return false;
+  }
+  static bool GetUint64(const Json& json, std::uint64_t& out) {
+    if (json.IsUint64()) {
+      out = json.GetUint64();
+      return true;
     }
     if (json.IsUint()) {
-      return json.GetUint();
+      out = json.GetUint();
+      return true;
+    }
+    if (json.IsInt()) {
+      const int v = json.GetInt();
+      if (v < 0) {
+        return false;
+      }
+      out = static_cast<std::uint64_t>(v);
+      return true;
     }
     if (json.IsInt64()) {
-      return static_cast<std::uint64_t>(json.GetInt64());
+      const std::int64_t v = json.GetInt64();
+      if (v < 0) {
+        return false;
+      }
+      out = static_cast<std::uint64_t>(v);
+      return true;
     }
-    return static_cast<std::uint64_t>(json.GetInt());
+    return false;
   }
-  static double GetDouble(const Json& json) { return json.GetDouble(); }
-  static std::string GetString(const Json& json) { return json.GetString(); }
-  static bool GetBool(const Json& json) { return json.GetBool(); }
+  static bool GetDouble(const Json& json, double& out) {
+    if (!json.IsDouble()) {
+      return false;
+    }
+    out = json.GetDouble();
+    return true;
+  }
+  static bool GetString(const Json& json, std::string& out) {
+    if (!json.IsString()) {
+      return false;
+    }
+    out = json.GetString();
+    return true;
+  }
+  static bool GetBool(const Json& json, bool& out) {
+    if (!json.IsBool()) {
+      return false;
+    }
+    out = json.GetBool();
+    return true;
+  }
 
   static const Json* TryGetChild(const Json& json, std::string_view key) {
     if (!json.IsObject()) {
@@ -268,8 +347,7 @@ struct JsonWriteTraits<rapidjson::Value> {
           rapidjson::StringRef(name.data(),
                                static_cast<rapidjson::SizeType>(name.size())),
           child, owner.GetAllocator());
-      auto it = node.FindMember(key);
-      return it == node.MemberEnd() ? nullptr : &it->value;
+      return &(--node.MemberEnd())->value;
     } catch (...) {
       return nullptr;
     }

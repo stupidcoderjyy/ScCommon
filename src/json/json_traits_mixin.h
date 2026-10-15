@@ -59,25 +59,46 @@ class JsonTraitsMixin {
   }
 
   [[nodiscard]] int GetInt() const {
-    return ValueOr<int, &JsonTraits<Json>::GetInt>();
+    auto* n = node();
+    int out{};
+    return n != nullptr && JsonTraits<Json>::GetInt(*n, out) ? out : int{};
   }
   [[nodiscard]] unsigned int GetUint() const {
-    return ValueOr<unsigned int, &JsonTraits<Json>::GetUint>();
+    auto* n = node();
+    unsigned int out{};
+    return n != nullptr && JsonTraits<Json>::GetUint(*n, out) ? out : 0u;
   }
   [[nodiscard]] std::int64_t GetInt64() const {
-    return ValueOr<std::int64_t, &JsonTraits<Json>::GetInt64>();
+    auto* n = node();
+    std::int64_t out{};
+    return n != nullptr && JsonTraits<Json>::GetInt64(*n, out)
+               ? out
+               : std::int64_t{};
   }
   [[nodiscard]] std::uint64_t GetUint64() const {
-    return ValueOr<std::uint64_t, &JsonTraits<Json>::GetUint64>();
+    auto* n = node();
+    std::uint64_t out{};
+    return n != nullptr && JsonTraits<Json>::GetUint64(*n, out)
+               ? out
+               : std::uint64_t{};
   }
   [[nodiscard]] double GetDouble() const {
-    return ValueOr<double, &JsonTraits<Json>::GetDouble>();
+    auto* n = node();
+    double out{};
+    return n != nullptr && JsonTraits<Json>::GetDouble(*n, out) ? out : 0.0;
   }
   [[nodiscard]] std::string GetString() const {
-    return ValueOr<std::string, &JsonTraits<Json>::GetString>();
+    auto* n = node();
+    std::string out;
+    if (n != nullptr && JsonTraits<Json>::GetString(*n, out)) {
+      return out;
+    }
+    return {};
   }
   [[nodiscard]] bool GetBool() const {
-    return ValueOr<bool, &JsonTraits<Json>::GetBool>();
+    auto* n = node();
+    bool out = false;
+    return n != nullptr && JsonTraits<Json>::GetBool(*n, out) ? out : false;
   }
 
   [[nodiscard]] const Json* TryGetChild(std::string_view key) const {

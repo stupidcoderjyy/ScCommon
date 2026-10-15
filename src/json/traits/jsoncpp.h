@@ -41,13 +41,56 @@ template <>
 struct JsonAccessTraits<Json::Value> {
   using Json = Json::Value;
 
-  static int GetInt(const Json& json) { return json.asInt(); }
-  static unsigned int GetUint(const Json& json) { return json.asUInt(); }
-  static std::int64_t GetInt64(const Json& json) { return json.asInt64(); }
-  static std::uint64_t GetUint64(const Json& json) { return json.asUInt64(); }
-  static double GetDouble(const Json& json) { return json.asDouble(); }
-  static std::string GetString(const Json& json) { return json.asString(); }
-  static bool GetBool(const Json& json) { return json.asBool(); }
+
+  static bool GetInt(const Json& json, int& out) {
+    if (!json.isInt()) {
+      return false;
+    }
+    out = json.asInt();
+    return true;
+  }
+  static bool GetUint(const Json& json, unsigned int& out) {
+    if (!json.isUInt()) {
+      return false;
+    }
+    out = json.asUInt();
+    return true;
+  }
+  static bool GetInt64(const Json& json, std::int64_t& out) {
+    if (!json.isInt64()) {
+      return false;
+    }
+    out = json.asInt64();
+    return true;
+  }
+  static bool GetUint64(const Json& json, std::uint64_t& out) {
+    if (!json.isUInt64()) {
+      return false;
+    }
+    out = json.asUInt64();
+    return true;
+  }
+  static bool GetDouble(const Json& json, double& out) {
+    if (!json.isDouble()) {
+      return false;
+    }
+    out = json.asDouble();
+    return true;
+  }
+  static bool GetString(const Json& json, std::string& out) {
+    if (!json.isString()) {
+      return false;
+    }
+    out = json.asString();
+    return true;
+  }
+  static bool GetBool(const Json& json, bool& out) {
+    if (!json.isBool()) {
+      return false;
+    }
+    out = json.asBool();
+    return true;
+  }
 
   static const Json* TryGetChild(const Json& json, std::string_view key) {
     return json.isObject() ? json.find(key.data(), key.data() + key.size())
@@ -210,8 +253,9 @@ struct JsonWriteTraits<Json::Value> {
         return nullptr;
       }
       const std::string key(name);
-      node[key] = std::forward<T>(value);
-      return &node[key];
+      ::Json::Value& child = node[key];
+      child = std::forward<T>(value);
+      return &child;
     } catch (...) {
       return nullptr;
     }

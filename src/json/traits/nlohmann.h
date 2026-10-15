@@ -74,21 +74,100 @@ template <>
 struct JsonAccessTraits<nlohmann::json> {
   using Json = nlohmann::json;
 
-  static int GetInt(const Json& json) { return json.get<int>(); }
-  static unsigned int GetUint(const Json& json) {
-    return json.get<unsigned int>();
+
+  static bool GetInt(const Json& json, int& out) {
+    if (json.is_number_unsigned()) {
+      const std::uint64_t v = json.get<std::uint64_t>();
+      if (v > static_cast<std::uint64_t>((std::numeric_limits<int>::max)())) {
+        return false;
+      }
+      out = static_cast<int>(v);
+      return true;
+    }
+    if (json.is_number_integer()) {
+      const std::int64_t v = json.get<std::int64_t>();
+      if (v < (std::numeric_limits<int>::min)() ||
+          v > (std::numeric_limits<int>::max)()) {
+        return false;
+      }
+      out = static_cast<int>(v);
+      return true;
+    }
+    return false;
   }
-  static std::int64_t GetInt64(const Json& json) {
-    return json.get<std::int64_t>();
+  static bool GetUint(const Json& json, unsigned int& out) {
+    if (json.is_number_unsigned()) {
+      const std::uint64_t v = json.get<std::uint64_t>();
+      if (v > static_cast<std::uint64_t>(
+                  (std::numeric_limits<unsigned int>::max)())) {
+        return false;
+      }
+      out = static_cast<unsigned int>(v);
+      return true;
+    }
+    if (json.is_number_integer()) {
+      const std::int64_t v = json.get<std::int64_t>();
+      if (v < 0 || v > static_cast<std::int64_t>(
+                           (std::numeric_limits<unsigned int>::max)())) {
+        return false;
+      }
+      out = static_cast<unsigned int>(v);
+      return true;
+    }
+    return false;
   }
-  static std::uint64_t GetUint64(const Json& json) {
-    return json.get<std::uint64_t>();
+  static bool GetInt64(const Json& json, std::int64_t& out) {
+    if (json.is_number_unsigned()) {
+      const std::uint64_t v = json.get<std::uint64_t>();
+      if (v > static_cast<std::uint64_t>(
+                  (std::numeric_limits<std::int64_t>::max)())) {
+        return false;
+      }
+      out = static_cast<std::int64_t>(v);
+      return true;
+    }
+    if (!json.is_number_integer()) {
+      return false;
+    }
+    out = json.get<std::int64_t>();
+    return true;
   }
-  static double GetDouble(const Json& json) { return json.get<double>(); }
-  static std::string GetString(const Json& json) {
-    return json.get<std::string>();
+  static bool GetUint64(const Json& json, std::uint64_t& out) {
+    if (json.is_number_unsigned()) {
+      out = json.get<std::uint64_t>();
+      return true;
+    }
+    if (json.is_number_integer()) {
+      const std::int64_t v = json.get<std::int64_t>();
+      if (v < 0) {
+        return false;
+      }
+      out = static_cast<std::uint64_t>(v);
+      return true;
+    }
+    return false;
   }
-  static bool GetBool(const Json& json) { return json.get<bool>(); }
+  static bool GetDouble(const Json& json, double& out) {
+    if (!json.is_number_float()) {
+      return false;
+    }
+    out = json.get<double>();
+    return true;
+  }
+  static bool GetString(const Json& json, std::string& out) {
+    if (!json.is_string()) {
+      return false;
+    }
+    out = json.get<std::string>();
+    return true;
+  }
+  static bool GetBool(const Json& json, bool& out) {
+    if (!json.is_boolean()) {
+      return false;
+    }
+    out = json.get<bool>();
+    return true;
+  }
 
   static const Json* TryGetChild(const Json& json, std::string_view key) {
     if (!json.is_object()) {
@@ -223,8 +302,9 @@ struct JsonWriteTraits<nlohmann::json> {
         return nullptr;
       }
       const std::string key(name);
-      node[key] = std::forward<T>(value);
-      return &node[key];
+      auto it = node.emplace(key, nullptr).first;
+      *it = std::forward<T>(value);
+      return &*it;
     } catch (...) {
       return nullptr;
     }

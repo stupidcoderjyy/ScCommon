@@ -34,13 +34,13 @@ struct JsonTypeTraits {
 // 访问
 template <typename Json>
 struct JsonAccessTraits {
-  static int GetInt(const Json&);
-  static unsigned int GetUint(const Json&);
-  static std::int64_t GetInt64(const Json&);
-  static std::uint64_t GetUint64(const Json&);
-  static double GetDouble(const Json&);
-  static std::string GetString(const Json&);
-  static bool GetBool(const Json&);
+  static bool GetInt(const Json&, int&) noexcept;
+  static bool GetUint(const Json&, unsigned int&) noexcept;
+  static bool GetInt64(const Json&, std::int64_t&) noexcept;
+  static bool GetUint64(const Json&, std::uint64_t&) noexcept;
+  static bool GetDouble(const Json&, double&) noexcept;
+  static bool GetString(const Json&, std::string&);
+  static bool GetBool(const Json&, bool&) noexcept;
 
   static const Json* TryGetChild(const Json&, std::string_view key) noexcept;
   static std::size_t GetArraySize(const Json&) noexcept;

@@ -94,6 +94,27 @@ struct SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
   std::string request_id_;
 };
 
+template <typename T>
+T TraitGet(const SC_JSON_TYPE& node) {
+  T out{};
+  if constexpr (std::is_same_v<T, int>) {
+    JsonTraits<SC_JSON_TYPE>::GetInt(node, out);
+  } else if constexpr (std::is_same_v<T, unsigned int>) {
+    JsonTraits<SC_JSON_TYPE>::GetUint(node, out);
+  } else if constexpr (std::is_same_v<T, std::int64_t>) {
+    JsonTraits<SC_JSON_TYPE>::GetInt64(node, out);
+  } else if constexpr (std::is_same_v<T, std::uint64_t>) {
+    JsonTraits<SC_JSON_TYPE>::GetUint64(node, out);
+  } else if constexpr (std::is_same_v<T, double>) {
+    JsonTraits<SC_JSON_TYPE>::GetDouble(node, out);
+  } else if constexpr (std::is_same_v<T, std::string>) {
+    JsonTraits<SC_JSON_TYPE>::GetString(node, out);
+  } else if constexpr (std::is_same_v<T, bool>) {
+    JsonTraits<SC_JSON_TYPE>::GetBool(node, out);
+  }
+  return out;
+}
+
 // 自定义类型 + 自定义提取器（特化 Extractor<JsonType, MyType>）
 struct SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUITE_NAME) {
   int x = 0;
@@ -110,8 +131,8 @@ struct sc::json::Extractor<SC_JSON_TYPE, SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUI
     if (x == nullptr || y == nullptr) {
       return false;
     }
-    out.x = JsonTraits<SC_JSON_TYPE>::GetInt(*x);
-    out.y = JsonTraits<SC_JSON_TYPE>::GetInt(*y);
+    out.x = TraitGet<int>(*x);
+    out.y = TraitGet<int>(*y);
     return true;
   }
 };
@@ -1242,7 +1263,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnView) {
   EXPECT_TRUE(list.IsArray());
   EXPECT_EQ(3u, list.GetArraySize());
   EXPECT_FALSE(list.IsInt());
-  EXPECT_EQ(2, JsonTraits<SC_JSON_TYPE>::GetInt(list.GetArrayElement(1)));
+  EXPECT_EQ(2, TraitGet<int>(list.GetArrayElement(1)));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnInvalidViewAreSafe) {
@@ -1487,7 +1508,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, AutoChainOnWrite) {
   // 已存在：直接返回原节点
   const SC_JSON_TYPE* existing = resolve("a.x"_path);
   ASSERT_NE(nullptr, existing);
-  EXPECT_EQ(1, JsonTraits<SC_JSON_TYPE>::GetInt(*existing));
+  EXPECT_EQ(1, TraitGet<int>(*existing));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriteAddInt) {
@@ -1495,7 +1516,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddInt) {
   SC_JSON_TYPE* node =
       JsonTraits<SC_JSON_TYPE>::AddInt(owner, owner.json(), "v", 42);
   ASSERT_NE(nullptr, node);
-  EXPECT_EQ(42, JsonTraits<SC_JSON_TYPE>::GetInt(*node));
+  EXPECT_EQ(42, TraitGet<int>(*node));
   EXPECT_EQ(node, JsonTraits<SC_JSON_TYPE>::TryGetChild(owner.json(), "v"));
 }
 
@@ -1504,7 +1525,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddUint) {
   SC_JSON_TYPE* node =
       JsonTraits<SC_JSON_TYPE>::AddUint(owner, owner.json(), "v", 7u);
   ASSERT_NE(nullptr, node);
-  EXPECT_EQ(7u, JsonTraits<SC_JSON_TYPE>::GetUint(*node));
+  EXPECT_EQ(7u, TraitGet<unsigned int>(*node));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriteAddInt64) {
@@ -1512,7 +1533,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddInt64) {
   SC_JSON_TYPE* node = JsonTraits<SC_JSON_TYPE>::AddInt64(
       owner, owner.json(), "v", -9007199254740993LL);
   ASSERT_NE(nullptr, node);
-  EXPECT_EQ(-9007199254740993LL, JsonTraits<SC_JSON_TYPE>::GetInt64(*node));
+  EXPECT_EQ(-9007199254740993LL, TraitGet<std::int64_t>(*node));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriteAddUint64) {
@@ -1521,7 +1542,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddUint64) {
       owner, owner.json(), "v", 18446744073709551615ULL);
   ASSERT_NE(nullptr, node);
   EXPECT_EQ(18446744073709551615ULL,
-            JsonTraits<SC_JSON_TYPE>::GetUint64(*node));
+            TraitGet<std::uint64_t>(*node));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriteAddDouble) {
@@ -1529,7 +1550,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddDouble) {
   SC_JSON_TYPE* node =
       JsonTraits<SC_JSON_TYPE>::AddDouble(owner, owner.json(), "v", 3.5);
   ASSERT_NE(nullptr, node);
-  EXPECT_DOUBLE_EQ(3.5, JsonTraits<SC_JSON_TYPE>::GetDouble(*node));
+  EXPECT_DOUBLE_EQ(3.5, TraitGet<double>(*node));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriteAddBool) {
@@ -1537,7 +1558,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddBool) {
   SC_JSON_TYPE* node =
       JsonTraits<SC_JSON_TYPE>::AddBool(owner, owner.json(), "v", true);
   ASSERT_NE(nullptr, node);
-  EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::GetBool(*node));
+  EXPECT_TRUE(TraitGet<bool>(*node));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriteAddNull) {
@@ -1552,7 +1573,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddString) {
   SC_JSON_TYPE* node =
       JsonTraits<SC_JSON_TYPE>::AddString(owner, owner.json(), "v", "hi");
   ASSERT_NE(nullptr, node);
-  EXPECT_EQ(std::string("hi"), JsonTraits<SC_JSON_TYPE>::GetString(*node));
+  EXPECT_EQ(std::string("hi"), TraitGet<std::string>(*node));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
@@ -1573,28 +1594,28 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
   writer["n"_path] = nullptr;
 
   ASSERT_NE(nullptr, child("i"));
-  EXPECT_EQ(42, JsonTraits<SC_JSON_TYPE>::GetInt(*child("i")));
-  EXPECT_EQ(7u, JsonTraits<SC_JSON_TYPE>::GetUint(*child("u")));
+  EXPECT_EQ(42, TraitGet<int>(*child("i")));
+  EXPECT_EQ(7u, TraitGet<unsigned int>(*child("u")));
   EXPECT_EQ(-9007199254740993LL,
-            JsonTraits<SC_JSON_TYPE>::GetInt64(*child("i64")));
+            TraitGet<std::int64_t>(*child("i64")));
   EXPECT_EQ(18446744073709551615ULL,
-            JsonTraits<SC_JSON_TYPE>::GetUint64(*child("u64")));
-  EXPECT_DOUBLE_EQ(3.5, JsonTraits<SC_JSON_TYPE>::GetDouble(*child("d")));
-  EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::GetBool(*child("b")));
+            TraitGet<std::uint64_t>(*child("u64")));
+  EXPECT_DOUBLE_EQ(3.5, TraitGet<double>(*child("d")));
+  EXPECT_TRUE(TraitGet<bool>(*child("b")));
   EXPECT_EQ(std::string("hi"),
-            JsonTraits<SC_JSON_TYPE>::GetString(*child("s")));
+            TraitGet<std::string>(*child("s")));
   EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsNull(*child("n")));
 
   writer["a.x"_path] = 5;
   const SC_JSON_TYPE* a = child("a");
   ASSERT_NE(nullptr, a);
-  EXPECT_EQ(5, JsonTraits<SC_JSON_TYPE>::GetInt(
+  EXPECT_EQ(5, TraitGet<int>(
                    *JsonTraits<SC_JSON_TYPE>::TryGetChild(*a, "x")));
 
   writer["new.deep"_path] = 9;
   const SC_JSON_TYPE* created = child("new");
   ASSERT_NE(nullptr, created);
-  EXPECT_EQ(9, JsonTraits<SC_JSON_TYPE>::GetInt(
+  EXPECT_EQ(9, TraitGet<int>(
                    *JsonTraits<SC_JSON_TYPE>::TryGetChild(*created, "deep")));
 
   EXPECT_THROW(writer[""_path] = 1, std::runtime_error);

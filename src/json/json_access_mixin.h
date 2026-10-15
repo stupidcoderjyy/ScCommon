@@ -123,14 +123,18 @@ class JsonAccessMixin {
         !std::is_same_v<T, Required> && !std::is_same_v<T, Optional>,
         "JsonAccessMixin: 第一个模板参数是数据类型，策略在第二个，"
         "如 Put<int, Required>(path, out) / Get<int, Required>(path)");
-    const auto view = self().template View<ExistencePolicy>(path);
-    if (!view.valid()) {
+    const Json* base = self().node();
+    if (base == nullptr) {
       out = std::move(default_val);
       return self();
     }
-    if (T value{}; Ext::Extract(*view.node(), value)) {
-      out = std::move(value);
-    } else {
+    const Json* target = detail::ResolveWithPolicy<Json, N, ExistencePolicy>(
+        base, path, self().error_handler());
+    if (target == nullptr) {
+      out = std::move(default_val);
+      return self();
+    }
+    if (!Ext::Extract(*target, out)) {
       if constexpr (std::is_same_v<ExistencePolicy, Required>) {
         self().error_handler().OnTypeMismatch(detail::PathString(path));
       }
@@ -146,14 +150,19 @@ class JsonAccessMixin {
   Derived& FillArray(const Parts<N>& path, Container& arr) {
     using T = Container::value_type;
     arr.clear();
-    auto range = self().template ViewArray<ExistencePolicy>(path);
+    const auto range = self().template ViewArray<ExistencePolicy>(path);
+    const Json* array = range.node();
+    if (array == nullptr) {
+      return self();
+    }
     if constexpr (requires { arr.reserve(std::size_t{}); }) {
       arr.reserve(range.size());
     }
-    std::size_t i = 0;
-    for (auto&& element : range) {
+    const std::size_t size = range.size();
+    for (std::size_t i = 0; i < size; ++i) {
+      const Json& element = JsonTraits<Json>::GetArrayElement(*array, i);
       T value{};
-      if (!Ext::Extract(*element.node(), value)) {
+      if (!Ext::Extract(element, value)) {
         std::string element_path = detail::PathString(path);
         element_path += '[';
         detail::AppendNumber(element_path, i);
@@ -162,7 +171,6 @@ class JsonAccessMixin {
         return self();  // 若 ErrorHandler 返回，则中止填充
       }
       arr.push_back(std::move(value));
-      ++i;
     }
     return self();
   }
@@ -172,19 +180,25 @@ class JsonAccessMixin {
   Derived& FillMap(const Parts<N>& path, Container& map) {
     using T = typename Container::mapped_type;
     map.clear();
-    for (auto&& [key, value_view] :
-         self().template ViewObject<ExistencePolicy>(path)) {
+    const auto range = self().template ViewObject<ExistencePolicy>(path);
+    const Json* object = range.node();
+    if (object == nullptr) {
+      return self();
+    }
+    for (auto it = JsonTraits<Json>::MemberBegin(*object);
+         it != JsonTraits<Json>::MemberEnd(*object); ++it) {
+      const auto member = *it;
       T value{};
-      if (!Ext::Extract(*value_view.node(), value)) {
+      if (!Ext::Extract(*member.second, value)) {
         std::string member_path = detail::PathString(path);
         if (!member_path.empty()) {
           member_path += '.';
         }
-        member_path += key;
+        member_path += member.first;
         self().error_handler().OnTypeMismatch(member_path);
         return self();  // 若 ErrorHandler 返回，则中止填充
       }
-      map.emplace(std::string(key), std::move(value));
+      map.emplace(std::string(member.first), std::move(value));
     }
     return self();
   }

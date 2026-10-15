@@ -66,6 +66,8 @@ class JsonObjectView {
                 : iterator{};
   }
 
+  [[nodiscard]] const Json* node() const noexcept { return obj_; }
+
  private:
   const Json* obj_ = nullptr;
   ErrorHandler* handler_ = nullptr;

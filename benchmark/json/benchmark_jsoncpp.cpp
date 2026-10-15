@@ -63,9 +63,12 @@ std::pair<std::vector<std::int64_t>, std::int64_t> SC_BENCH_NATIVE_ARRAY_SCAN(
   const auto& list = json["list"];
   std::vector<std::int64_t> copied;
   copied.reserve(list.size());
-  std::int64_t sum = 0;
   for (auto it = list.begin(); it != list.end(); ++it) {
     copied.push_back(it->asInt64());
+  }
+  const auto& again = json["list"];
+  std::int64_t sum = 0;
+  for (auto it = again.begin(); it != again.end(); ++it) {
     sum += it->asInt64();
   }
   return {std::move(copied), sum};

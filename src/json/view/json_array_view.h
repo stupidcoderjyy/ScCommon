@@ -101,6 +101,7 @@ class JsonArrayView {
   [[nodiscard]] iterator end() const { return {array_, size_, handler_}; }
   [[nodiscard]] std::size_t size() const noexcept { return size_; }
   [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
+  [[nodiscard]] const Json* node() const noexcept { return array_; }
 
  private:
   const Json* array_ = nullptr;
