@@ -243,6 +243,43 @@ struct JsonWriteTraits<Json::Value> {
     return SetAt(parent, name, std::string(value));
   }
 
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddList(JsonOwner<::Json::Value, ErrorHandler>&,
+                                const ::Json::Value& parent,
+                                std::string_view name) noexcept {
+    return SetAt(parent, name, ::Json::Value(::Json::arrayValue));
+  }
+
+  template <JsonErrorHandler ErrorHandler, typename T>
+  static ::Json::Value* Append(JsonOwner<::Json::Value, ErrorHandler>&,
+                               ::Json::Value& array, const T& value) noexcept {
+    try {
+      if constexpr (std::is_same_v<T, int> ||
+                    std::is_same_v<T, unsigned int> ||
+                    std::is_same_v<T, std::int64_t> ||
+                    std::is_same_v<T, std::uint64_t> ||
+                    std::is_same_v<T, double> || std::is_same_v<T, bool>) {
+        array.append(value);
+        return &array[static_cast<Json::ArrayIndex>(array.size() - 1)];
+      } else {
+        return nullptr;
+      }
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AppendObject(JsonOwner<::Json::Value, ErrorHandler>&,
+                                     ::Json::Value& array) noexcept {
+    try {
+      array.append(::Json::Value(::Json::objectValue));
+      return &array[static_cast<Json::ArrayIndex>(array.size() - 1)];
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
  private:
   template <typename T>
   static ::Json::Value* SetAt(const ::Json::Value& parent,

@@ -292,6 +292,42 @@ struct JsonWriteTraits<nlohmann::json> {
     return SetAt(parent, name, std::string(value));
   }
 
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddList(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                       std::string_view name) noexcept {
+    return SetAt(parent, name, Json::array());
+  }
+
+  template <JsonErrorHandler ErrorHandler, typename T>
+  static Json* Append(JsonOwner<Json, ErrorHandler>&, Json& array,
+                      const T& value) noexcept {
+    try {
+      if constexpr (std::is_same_v<T, int> ||
+                    std::is_same_v<T, unsigned int> ||
+                    std::is_same_v<T, std::int64_t> ||
+                    std::is_same_v<T, std::uint64_t> ||
+                    std::is_same_v<T, double> || std::is_same_v<T, bool>) {
+        array.push_back(value);
+        return &array.back();
+      } else {
+        return nullptr;
+      }
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AppendObject(JsonOwner<Json, ErrorHandler>&,
+                            Json& array) noexcept {
+    try {
+      array.push_back(Json::object());
+      return &array.back();
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
  private:
   template <typename T>
   static Json* SetAt(const Json& parent, std::string_view name,

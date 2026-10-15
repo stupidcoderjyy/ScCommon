@@ -123,11 +123,11 @@ TEST(JsonPath, TokensOutliveTheirScope) {
     EXPECT_EQ((std::vector<std::string>{"a", "b", "[2]"}), tokens);
 }
 
-// ---------------- 运行期路径 RUNTIME_PATH ----------------
+// ---------------- 运行期路径 Parts ----------------
 
 TEST(JsonPath, RuntimePathTokens) {
     const std::string owning = "a";
-    const auto path = RUNTIME_PATH(owning, "b", "[2]", "c", "d");
+    const auto path = Parts{owning, "b", "[2]", "c", "d"};
     ASSERT_EQ(5u, path.Size());
     EXPECT_EQ(std::string_view("a"), path[0]);
     EXPECT_EQ(std::string_view("b"), path[1]);
@@ -138,31 +138,31 @@ TEST(JsonPath, RuntimePathTokens) {
 }
 
 TEST(JsonPath, RuntimePathEdgeCases) {
-    const auto empty = RUNTIME_PATH();
+    const auto empty = Parts{};
     EXPECT_EQ(0u, empty.Size());
 
-    const auto indexed = RUNTIME_PATH("[0]", "a");
+    const auto indexed = Parts{"[0]", "a"};
     ASSERT_EQ(2u, indexed.Size());
     EXPECT_EQ(std::string_view("[0]"), indexed[0]);
     EXPECT_EQ(std::string_view("a"), indexed[1]);
 
-    const auto consecutive = RUNTIME_PATH("a", "[0]", "[1]");
+    const auto consecutive = Parts{"a", "[0]", "[1]"};
     ASSERT_EQ(3u, consecutive.Size());
     EXPECT_EQ(std::string_view("a"), consecutive[0]);
     EXPECT_EQ(std::string_view("[0]"), consecutive[1]);
     EXPECT_EQ(std::string_view("[1]"), consecutive[2]);
 
-    const auto empty_token = RUNTIME_PATH("a", "");
+    const auto empty_token = Parts{"a", ""};
     ASSERT_EQ(2u, empty_token.Size());
     EXPECT_TRUE(empty_token[1].empty());
 
-    const auto unclosed = RUNTIME_PATH("a", "[1");
+    const auto unclosed = Parts{"a", "[1"};
     ASSERT_EQ(2u, unclosed.Size());
     EXPECT_EQ(std::string_view("[1"), unclosed[1]);
 }
 
 TEST(JsonPath, RuntimePathSub) {
-    const auto path = RUNTIME_PATH("a", "b", "c");
+    const auto path = Parts{"a", "b", "c"};
     const auto sub = path.Sub<1, 2>();
     ASSERT_EQ(2u, sub.Size());
     EXPECT_EQ(std::string_view("b"), sub[0]);

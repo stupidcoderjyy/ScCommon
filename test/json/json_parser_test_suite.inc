@@ -885,7 +885,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutWithRuntimePath) {
   JsonView view(json);
 
   const std::string key = "a";
-  const auto path = RUNTIME_PATH(key, "b");
+  const auto path = Parts{key, "b"};
   int value = 0;
   view.Put<int, Required>(path, value);
   EXPECT_EQ(42, value);
@@ -1171,7 +1171,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetOnArrowAndRuntimePath) {
   EXPECT_EQ(7, objects.begin()->Get("no.such"_path, 7));  // T 由默认值推导
 
   // 运行期路径同样可用
-  const auto path = RUNTIME_PATH("a", "b");
+  const auto path = Parts{"a", "b"};
   const int from_runtime = view.Get<int, Required>(path);
   EXPECT_EQ(42, from_runtime);
 }
@@ -1394,10 +1394,10 @@ TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathResolvesDynamicPath) {
   JsonView view(json);
 
   const std::string prefix = "a";
-  const auto path = RUNTIME_PATH(prefix, "b");
+  const auto path = Parts{prefix, "b"};
   EXPECT_EQ(42, view.View<Required>(path).GetInt());
 
-  const auto indexed = RUNTIME_PATH("obj_list", "[1]", "id");
+  const auto indexed = Parts{"obj_list", "[1]", "id"};
   ASSERT_EQ(3u, indexed.Size());
   EXPECT_EQ(2, view.View<Required>(indexed).GetInt());
 }
@@ -1411,13 +1411,13 @@ TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathInvalidReportsResolveError) {
   JsonView view(json, handler);
 
   // 编译期字面量会直接编译失败；运行期路径改由 OnPathResolveError 报告
-  const auto empty_segment = RUNTIME_PATH("a", "");
+  const auto empty_segment = Parts{"a", ""};
   EXPECT_FALSE(view.View<Required>(empty_segment).valid());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos,
             ErrorHandler::resolve_errors.front().find("a."));
 
-  const auto unclosed = RUNTIME_PATH("a", "[1");
+  const auto unclosed = Parts{"a", "[1"};
   EXPECT_FALSE(view.View<Required>(unclosed).valid());
   EXPECT_EQ(2u, ErrorHandler::resolve_errors.size());
 
@@ -1714,4 +1714,33 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetTypeWithContainers) {
   ASSERT_EQ(2u, bag.obj_list.size());
   EXPECT_EQ(1, bag.obj_list[0].id);
   EXPECT_EQ(2, bag.obj_list[1].id);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, SetTypeWithContainers) {
+  using Bag = SC_JSON_CONCAT(ContainerBag_, SC_JSON_TEST_SUITE_NAME);
+  using Item = SC_JSON_CONCAT(Item_, SC_JSON_TEST_SUITE_NAME);
+
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  JsonWriter<SC_JSON_TYPE> writer(owner);
+
+  Bag bag;
+  bag.list = {1, 2, 3};
+  bag.point = {{"x", 10}, {"y", 20}};
+  Item first;
+  first.id = 1;
+  Item second;
+  second.id = 2;
+  bag.obj_list = {first, second};
+
+  writer["bag"_path] = bag;
+
+  JsonView<SC_JSON_TYPE> view(owner.json());
+  const auto round = view.GetType<Bag>("bag"_path);
+  EXPECT_EQ((std::vector<std::int64_t>{1, 2, 3}), round.list);
+  ASSERT_EQ(2u, round.point.size());
+  EXPECT_EQ(10, round.point.at("x"));
+  EXPECT_EQ(20, round.point.at("y"));
+  ASSERT_EQ(2u, round.obj_list.size());
+  EXPECT_EQ(1, round.obj_list[0].id);
+  EXPECT_EQ(2, round.obj_list[1].id);
 }

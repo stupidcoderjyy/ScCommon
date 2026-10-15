@@ -103,6 +103,18 @@ struct JsonWriteTraits {
   static Json* AddString(JsonOwner<Json, ErrorHandler>& owner,
                          const Json& parent, std::string_view name,
                          std::string_view value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddList(JsonOwner<Json, ErrorHandler>& owner,
+                       const Json& parent, std::string_view name) noexcept;
+
+  template <JsonErrorHandler ErrorHandler, typename T>
+  static Json* Append(JsonOwner<Json, ErrorHandler>& owner, Json& array,
+                      const T& value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AppendObject(JsonOwner<Json, ErrorHandler>& owner,
+                            Json& array) noexcept;
 };
 
 template <typename Json>

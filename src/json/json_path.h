@@ -41,8 +41,6 @@ consteval auto operator""_path() {
   return MakeParts<N>(view);
 }
 
-#define RUNTIME_PATH(...) ::sc::json::Parts{__VA_ARGS__}
-
 
 }  // namespace sc::json
 

@@ -325,6 +325,44 @@ struct JsonWriteTraits<rapidjson::Value> {
     });
   }
 
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddList(JsonOwner<Json, ErrorHandler>& owner,
+                       const Json& parent, std::string_view name) noexcept {
+    return AddValue(owner, parent, name,
+                    [](Json& node) { node.SetArray(); });
+  }
+
+  template <JsonErrorHandler ErrorHandler, typename T>
+  static Json* Append(JsonOwner<Json, ErrorHandler>& owner, Json& array,
+                      const T& value) noexcept {
+    try {
+      if constexpr (std::is_same_v<T, int> ||
+                    std::is_same_v<T, unsigned int> ||
+                    std::is_same_v<T, std::int64_t> ||
+                    std::is_same_v<T, std::uint64_t> ||
+                    std::is_same_v<T, double> || std::is_same_v<T, bool>) {
+        array.PushBack(value, owner.GetAllocator());
+        return &array[array.Size() - 1];
+      } else {
+        return nullptr;
+      }
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AppendObject(JsonOwner<Json, ErrorHandler>& owner,
+                            Json& array) noexcept {
+    try {
+      rapidjson::Value child(rapidjson::kObjectType);
+      array.PushBack(child, owner.GetAllocator());
+      return &array[array.Size() - 1];
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
  private:
   template <JsonErrorHandler ErrorHandler, typename Setter>
   static Json* AddValue(JsonOwner<Json, ErrorHandler>& owner,
