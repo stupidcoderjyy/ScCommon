@@ -173,7 +173,7 @@ struct JsonAccessTraits<nlohmann::json> {
     if (!json.is_object()) {
       return nullptr;
     }
-    const auto it = json.find(std::string(key));
+    const auto it = json.find(key);
     return it == json.end() ? nullptr : &*it;
   }
   static std::size_t GetArraySize(const Json& json) { return json.size(); }

@@ -128,8 +128,20 @@ class JsonAccessMixin {
       out = std::move(default_val);
       return self();
     }
-    const Json* target = detail::ResolveWithPolicy<Json, N, ExistencePolicy>(
-        base, path, self().error_handler());
+    const Json* target = nullptr;
+    if constexpr (N == 0) {
+      target = base;
+    } else if constexpr (N == 1) {
+      target = JsonTraits<Json>::TryGetChild(*base, path[0]);
+      if constexpr (std::is_same_v<ExistencePolicy, Required>) {
+        if (target == nullptr) {
+          self().error_handler().OnPathResolveError(detail::PathString(path));
+        }
+      }
+    } else {
+      target = detail::ResolveWithPolicy<Json, N, ExistencePolicy>(
+          base, path, self().error_handler());
+    }
     if (target == nullptr) {
       out = std::move(default_val);
       return self();
@@ -178,7 +190,7 @@ class JsonAccessMixin {
   template <typename ExistencePolicy, typename Ext, typename Container,
             std::size_t N>
   Derived& FillMap(const Parts<N>& path, Container& map) {
-    using T = typename Container::mapped_type;
+    using T = Container::mapped_type;
     map.clear();
     const auto range = self().template ViewObject<ExistencePolicy>(path);
     const Json* object = range.node();
