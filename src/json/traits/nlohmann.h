@@ -302,9 +302,11 @@ struct JsonWriteTraits<nlohmann::json> {
         return nullptr;
       }
       const std::string key(name);
-      auto it = node.emplace(key, nullptr).first;
-      *it = std::forward<T>(value);
-      return &*it;
+      if (auto it = node.find(key); it != node.end()) {
+        *it = std::forward<T>(value);
+        return &*it;
+      }
+      return &node.emplace(key, std::forward<T>(value)).first.value();
     } catch (...) {
       return nullptr;
     }
