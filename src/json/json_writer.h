@@ -29,14 +29,14 @@ class JsonWriter {
 
   template <typename ExistencePolicy = Required, std::size_t N, typename T>
   Self& Set(const Parts<N>& path, const T& value) {
-    if constexpr (path.Size() == 0) {
+    if constexpr (N == 0) {
       if constexpr (std::is_same_v<ExistencePolicy, Required>) {
         owner_->err_handler().OnPathResolveError(detail::PathString(path));
       }
       return *this;
     } else {
       Json* parent = nullptr;
-      if constexpr (path.Size() == 1) {
+      if constexpr (N == 1) {
         parent = &owner_->json();
       } else {
         const auto sub = path.template Sub<0, N - 1>();
@@ -44,7 +44,7 @@ class JsonWriter {
                                            ErrorHandler, true>(
             &owner_->json(), sub, owner_->err_handler(), owner_);
       }
-      if (parent == nullptr) {
+      if (!parent) {
         return *this;
       }
       if (!Injector<Json, T>::Inject(*owner_, *parent, path[path.Size() - 1],

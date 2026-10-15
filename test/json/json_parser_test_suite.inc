@@ -120,7 +120,7 @@ struct sc::json::Extractor<SC_JSON_TYPE, SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUI
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromNode) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
   EXPECT_TRUE(view.valid());
   EXPECT_TRUE(static_cast<bool>(view));
   EXPECT_TRUE(view.IsObject());
@@ -137,7 +137,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, DefaultConstructedViewIsInvalid) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromText) {
   JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({"a":{"b":42},"s":"hi"})"));
-  JsonView<SC_JSON_TYPE> view(owner);
+  JsonView view(owner);
   EXPECT_TRUE(view.IsObject());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
   EXPECT_EQ(std::string("hi"), view.View<Required>("s"_path).GetString());
@@ -168,7 +168,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidTextCallsHandler) {
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdString) {
   const std::string text = R"({"a":{"b":42},"s":"hi"})";
   JsonOwner<SC_JSON_TYPE> owner{std::string_view(text)};
-  JsonView<SC_JSON_TYPE> view(owner);
+  JsonView view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_TRUE(view.IsObject());  // 若被当成节点，这里会是字符串节点
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
@@ -183,7 +183,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromTemporaryStdString) {
   // 右值：临时 string 只在构造期间被读取，解析结果由 owner 自己持有
   JsonOwner<SC_JSON_TYPE> owner(
       std::string_view(std::string(R"({"a":{"b":42}})")));
-  JsonView<SC_JSON_TYPE> view(owner);
+  JsonView view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 }
@@ -213,7 +213,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdStringUsesGivenHandler) {
 TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStream) {
   std::istringstream input(R"({"a":{"b":42},"s":"hi"})");
   JsonOwner<SC_JSON_TYPE> owner(input);
-  JsonView<SC_JSON_TYPE> view(owner);
+  JsonView view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_TRUE(view.IsObject());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
@@ -230,7 +230,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromMultilineStream) {
     "list": [1, 2, 3]
   })");
   JsonOwner<SC_JSON_TYPE> owner(input);
-  JsonView<SC_JSON_TYPE> view(owner);
+  JsonView view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 
@@ -245,7 +245,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OwnerOutlivesStream) {
     std::istringstream input(R"({"a":{"b":42}})");
     return JsonOwner<SC_JSON_TYPE>(input);
   }();
-  JsonView<SC_JSON_TYPE> view(owner);
+  JsonView view(owner);
   EXPECT_TRUE(view.valid());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 }
@@ -253,7 +253,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OwnerOutlivesStream) {
 TEST(SC_JSON_TEST_SUITE_NAME, ParserFromStream) {
   std::istringstream input(R"({"a":{"b":42}})");
   JsonParser<SC_JSON_TYPE> parser(input);
-  JsonView<SC_JSON_TYPE> view(parser.json());
+  JsonView view(parser.json());
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 }
 
@@ -292,7 +292,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStreamUsesGivenHandler) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewResolvesPath) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
   EXPECT_EQ(-7, view.View<Required>("neg"_path).GetInt());
@@ -304,7 +304,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewResolvesPath) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewResolvesArrayIndex) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   EXPECT_EQ(2, view.View<Required>("list[1]"_path).GetInt());
   EXPECT_EQ(2, view.View<Required>("obj_list[1].id"_path).GetInt());
@@ -312,13 +312,13 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewResolvesArrayIndex) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewEmptyPathIsCurrentNode) {
   const SC_JSON_TYPE leaf = SC_JSON_MAKE_JSON_LEAF();
-  JsonView<SC_JSON_TYPE> view(leaf);
+  JsonView view(leaf);
   EXPECT_EQ(42, view.View<Required>(""_path).GetInt());
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewOptionalMissingGivesInvalidView) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   auto missing = view.View("no.such.path"_path);
   EXPECT_FALSE(missing.valid());
@@ -327,7 +327,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewOptionalMissingGivesInvalidView) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ViewRequiredMissingThrows) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
   EXPECT_THROW((void)view.View<Required>("no.such.path"_path), std::runtime_error);
   EXPECT_THROW((void)view.View<Required>("list[9]"_path), std::runtime_error);
   EXPECT_THROW((void)view.View<Required>("list.b"_path), std::runtime_error);
@@ -335,7 +335,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewRequiredMissingThrows) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, NestedViewsAreRelative) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   auto point = view.View<Required>("point"_path);
   EXPECT_TRUE(point.IsObject());
@@ -351,7 +351,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, NestedViewsAreRelative) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewIteratesElements) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   auto range = view.ViewArray<Required>("list"_path);
   EXPECT_FALSE(range.empty());
@@ -361,7 +361,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewIteratesElements) {
   for (auto&& element : range) {
     values.push_back(element.GetInt());
   }
-  EXPECT_EQ((std::vector<int>{1, 2, 3}), values);
+  EXPECT_EQ((std::vector{1, 2, 3}), values);
 
   // 随机访问
   EXPECT_EQ(2, (*(range.begin() + 1)).GetInt());
@@ -370,7 +370,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewIteratesElements) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewEmptyOnMissingOptional) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   auto range = view.ViewArray("no.such"_path);
   EXPECT_TRUE(range.empty());
@@ -388,7 +388,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewRequiredReportsErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   // 路径缺失 → OnPathResolveError
   EXPECT_TRUE(view.ViewArray<Required>("no.such"_path).empty());
@@ -404,7 +404,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewRequiredReportsErrors) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewComposesWithRanges) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // transform：取每个元素的 id
   std::vector<int> ids;
@@ -415,7 +415,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewComposesWithRanges) {
   for (int id : id_view) {
     ids.push_back(id);
   }
-  EXPECT_EQ((std::vector<int>{1, 2}), ids);
+  EXPECT_EQ((std::vector{1, 2}), ids);
 
   // filter + transform：只保留 id == 2
   auto names = view.ViewArray("obj_list"_path) |
@@ -433,7 +433,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewComposesWithRanges) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewIsZeroCopyAndComposable) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   auto range = view.ViewArray<Required>("list"_path);
   // 元素指向底层文档中的节点（零拷贝）
@@ -445,7 +445,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewIsZeroCopyAndComposable) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrayIteratorSupportsArrow) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   auto range = view.ViewArray<Required>("list"_path);
   EXPECT_EQ(1, range.begin()->GetInt());
@@ -477,7 +477,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayIteratorSupportsArrow) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ArrowPutOnArrayElements) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
   auto objects = view.ViewArray<Required>("obj_list"_path);
 
   // 典型场景：pkg_list_view.begin()->Put("id"_path, result, kInvalidId)
@@ -511,7 +511,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrowPutOnArrayElements) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ObjectViewStructuredBinding) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   std::map<std::string, int> values;
   for (auto&& [key, value] : view.ViewObject("point"_path)) {
@@ -529,7 +529,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ObjectViewEmptyAndRequiredErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   auto empty = view.ViewObject("no.such"_path);
   EXPECT_EQ(empty.begin(), empty.end());
@@ -544,7 +544,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ObjectViewEmptyAndRequiredErrors) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ObjectIteratorSupportsArrow) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   auto object = view.ViewObject<Required>("point"_path);
 
@@ -578,7 +578,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ObjectIteratorSupportsArrow) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutScalarsWithExplicitType) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   int i = 0;
   view.Put("a.b"_path, i);
@@ -607,7 +607,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutScalarsWithExplicitType) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutScalarsByTypeDeduction) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   int i = 0;
   view.Put("a.b"_path, i);  // 提取器由 out 类型推导
@@ -637,7 +637,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutScalarsByTypeDeduction) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalWritesDefault) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 路径缺失 → 默认值
   int missing = 0;
@@ -686,7 +686,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutRequiredReportsErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   int value = 0;
   // 路径缺失 → OnPathResolveError（handler 返回时写默认值）
@@ -723,7 +723,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutRequiredReportsErrors) {
   EXPECT_EQ(std::string("d"), ErrorHandler::mismatches.back());
 
   // 默认 handler 下抛异常
-  JsonView<SC_JSON_TYPE> strict(json);
+  JsonView strict(json);
   // 注意：模板实参里的逗号会切断宏参数，故整体再包一层括号
   EXPECT_THROW(
       ((void)strict.Put<int, Required>("no.such.path"_path, value)),
@@ -734,7 +734,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutRequiredReportsErrors) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutReturnsSelfForChaining) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   int i = 0;
   std::string s;
@@ -758,11 +758,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutReturnsSelfForChaining) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutArrayAndMap) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   std::vector<int> nums;
   view.PutArray<int, Required>("list"_path, nums);
-  EXPECT_EQ((std::vector<int>{1, 2, 3}), nums);
+  EXPECT_EQ((std::vector{1, 2, 3}), nums);
 
   std::map<std::string, int> point;
   view.PutMap<int, Required>("point"_path, point);
@@ -771,7 +771,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayAndMap) {
   EXPECT_EQ(20, point["y"]);
 
   // Optional：缺失时得到空容器
-  std::vector<int> empty_nums = {9};
+  std::vector empty_nums = {9};
   view.PutArray("no.such"_path, empty_nums);
   EXPECT_TRUE(empty_nums.empty());
 
@@ -782,7 +782,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayAndMap) {
   // 推导形式：元素类型由容器决定
   std::vector<int> deduced_nums;
   view.PutArray("list"_path, deduced_nums);
-  EXPECT_EQ((std::vector<int>{1, 2, 3}), deduced_nums);
+  EXPECT_EQ((std::vector{1, 2, 3}), deduced_nums);
 
   std::map<std::string, int> deduced_point;
   view.PutMap("point"_path, deduced_point);
@@ -793,7 +793,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayAndMap) {
   // 推导形式下 ExistencePolicy 仍是第一个模板实参
   std::vector<int> required_nums;
   view.PutArray<int, Required>("list"_path, required_nums);
-  EXPECT_EQ((std::vector<int>{1, 2, 3}), required_nums);
+  EXPECT_EQ((std::vector{1, 2, 3}), required_nums);
 
   std::map<std::string, int> required_point;
   view.PutMap<int, Required>("point"_path, required_point);
@@ -806,7 +806,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayElementMismatchReportsFullPath) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   std::vector<int> arr;
   view.PutArray<int, Required>("obj_list"_path, arr);  // 元素是对象，不是 int
@@ -821,7 +821,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutMapValueMismatchReportsFullPath) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   std::map<std::string, std::string> map;
   view.PutMap<std::string, Required>("point"_path, map);  // 值是 int，不是 string
@@ -833,7 +833,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutMapValueMismatchReportsFullPath) {
 TEST(SC_JSON_TEST_SUITE_NAME, PutCustomType) {
   using Point = SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUITE_NAME);
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 显式写类型：Put<类型, 策略>(path, out)
   Point point;
@@ -861,7 +861,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutCustomType) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutWithRuntimePath) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   const std::string key = "a";
   const auto path = RUNTIME_PATH(key, "b");
@@ -881,7 +881,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutNullIsTypeMismatchNotMissing) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   // Optional：null 不是 int → 写默认值，且不报错
   int optional_value = 5;
@@ -920,7 +920,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalTargetTurnsNullIntoNullopt) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   // 命中 → engaged
   std::optional<int> value;
@@ -937,19 +937,19 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalTargetTurnsNullIntoNullopt) {
   EXPECT_TRUE(ErrorHandler::mismatches.empty());
 
   // 缺失 → nullopt（Optional 下写默认值）
-  std::optional<int> missing{7};
+  std::optional missing{7};
   view.Put("no.such"_path, missing);
   EXPECT_FALSE(missing.has_value());
 
   // 类型不符 → Optional 下同样是 nullopt
-  std::optional<int> mismatch{9};
+  std::optional mismatch{9};
   view.Put("s"_path, mismatch);
   EXPECT_FALSE(mismatch.has_value());
   EXPECT_TRUE(ErrorHandler::resolve_errors.empty());
   EXPECT_TRUE(ErrorHandler::mismatches.empty());
 
   // 显式提取器形式同样支持可空目标
-  std::optional<int> explicit_form{3};
+  std::optional explicit_form{3};
   view.Put<std::optional<int>, Required>("nil"_path, explicit_form);
   EXPECT_FALSE(explicit_form.has_value());
   EXPECT_TRUE(ErrorHandler::mismatches.empty());
@@ -970,14 +970,14 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalTargetTurnsNullIntoNullopt) {
   EXPECT_FALSE(flag.has_value());
 
   // Required + 类型不符仍然报 OnTypeMismatch（只有 null 被 optional 接纳）
-  std::optional<int> bad{1};
+  std::optional bad{1};
   view.Put<std::optional<int>, Required>("s"_path, bad);
   EXPECT_FALSE(bad.has_value());
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("s"), ErrorHandler::mismatches.front());
 
   // nullopt 只吸收「null」，不能吸收「缺失」：Required 下路径缺失仍是路径错误
-  std::optional<int> required_missing{5};
+  std::optional required_missing{5};
   view.Put<std::optional<int>, Required>("no.such.path"_path, required_missing);
   EXPECT_FALSE(required_missing.has_value());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
@@ -988,7 +988,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalTargetTurnsNullIntoNullopt) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutArrayOfOptionalTargets) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // [1,null,3] → [1, nullopt, 3]
   std::vector<std::optional<int>> values;
@@ -1015,7 +1015,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayOptionalElementMismatchReportsPath) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   // 元素是对象，既不是 null 也不是 int → 类型不符
   std::vector<std::optional<int>> arr;
@@ -1027,7 +1027,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayOptionalElementMismatchReportsPath) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutMapOfOptionalTargets) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // {"x":10,"y":null} → x engaged 10，y nullopt
   std::map<std::string, std::optional<int>> values;
@@ -1042,7 +1042,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutMapOfOptionalTargets) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, GetScalarsReturnsValue) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 显式写 <类型, 策略>；注意 gtest 宏不识别尖括号里的逗号，
   // 所以要么先赋值给局部变量，要么把整个调用再包一层括号
@@ -1082,7 +1082,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetRequiredReportsErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   // 路径缺失 → OnPathResolveError，返回值回落默认值
   EXPECT_EQ(-1, (view.Get<int, Required>("no.such.path"_path, -1)));
@@ -1094,7 +1094,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetRequiredReportsErrors) {
   EXPECT_EQ(std::string("s"), ErrorHandler::mismatches.front());
 
   // 默认 handler 下抛异常（模板实参里的逗号要再包一层括号）
-  JsonView<SC_JSON_TYPE> strict(json);
+  JsonView strict(json);
   EXPECT_THROW(((void)strict.Get<int, Required>("no.such.path"_path)),
                std::runtime_error);
   EXPECT_THROW(((void)strict.Get<int, Required>("s"_path)), std::runtime_error);
@@ -1102,12 +1102,12 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetRequiredReportsErrors) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, GetArrayAndGetMapReturnContainers) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 第二个模板实参是「返回类型」
   const std::vector<int> nums =
       view.GetArray<std::vector<int>, Required>("list"_path);
-  EXPECT_EQ((std::vector<int>{1, 2, 3}), nums);
+  EXPECT_EQ((std::vector{1, 2, 3}), nums);
 
   const auto point =
       view.GetMap<std::map<std::string, int>, Required>("point"_path);
@@ -1136,7 +1136,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetArrayAndGetMapReturnContainers) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, GetOnArrowAndRuntimePath) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 箭头链式：元素是对象时直接取值
   auto objects = view.ViewArray<Required>("obj_list"_path);
@@ -1157,7 +1157,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetOnArrowAndRuntimePath) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, TypeIsFirstPolicyIsSecond) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 策略在第二个参数且有默认值 → 只写类型即可
   EXPECT_TRUE(view.Get<bool>("flag"_path));
@@ -1177,7 +1177,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TypeIsFirstPolicyIsSecond) {
 
   // 容器版同理：只写容器类型
   const std::vector<int> nums = view.GetArray<std::vector<int>>("list"_path);
-  EXPECT_EQ((std::vector<int>{1, 2, 3}), nums);
+  EXPECT_EQ((std::vector{1, 2, 3}), nums);
   const std::map<std::string, int> point =
       view.GetMap<std::map<std::string, int>>("point"_path);
   EXPECT_EQ(2u, point.size());
@@ -1192,7 +1192,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TypeIsFirstPolicyIsSecond) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, GetArrayOfDoubleFromNestedPath) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 外部项目里的写法：auto values = view.GetArray<std::vector<double>, Required>(path);
   const std::vector<double> values =
@@ -1222,7 +1222,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetArrayOfDoubleFromNestedPath) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnView) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   EXPECT_TRUE(view.IsObject());
   EXPECT_FALSE(view.IsArray());
@@ -1247,7 +1247,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnView) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnInvalidViewAreSafe) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
   auto invalid = view.View("no.such"_path);
   ASSERT_FALSE(invalid.valid());
 
@@ -1268,7 +1268,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsOpsOnInvalidViewAreSafe) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, TraitsIsNull) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   const auto nil = view.View<Required>("nil"_path);
   ASSERT_TRUE(nil.valid());
@@ -1299,7 +1299,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsIsNull) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, TraitsToString) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 标量与容器都按紧凑形式序列化
   EXPECT_EQ(std::string("42"), view.View<Required>("a.b"_path).ToString());
@@ -1322,7 +1322,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsToString) {
   const std::string text = view.ToString();
   EXPECT_FALSE(text.empty());
   JsonOwner<SC_JSON_TYPE> reparsed_owner{std::string_view(text)};
-  JsonView<SC_JSON_TYPE> reparsed(reparsed_owner);
+  JsonView reparsed(reparsed_owner);
   EXPECT_EQ(42, reparsed.View<Required>("a.b"_path).GetInt());
   EXPECT_EQ(std::string("hello"), reparsed.View<Required>("s"_path).GetString());
   EXPECT_TRUE(reparsed.View<Required>("nil"_path).IsNull());
@@ -1338,7 +1338,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsToStringKeepsUtf8) {
   const std::string kZhKeyObj = "{\"" + kKey + "\":\"" + kValue + "\"}";
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   // 1) 解析：\uXXXX 转义与源码里的字面 UTF-8 都必须还原成同一串 UTF-8 字节
   EXPECT_EQ(kZh, view.View<Required>("zh"_path).GetString());
@@ -1358,7 +1358,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsToStringKeepsUtf8) {
 
   // 4) 序列化 → 再解析 → 再序列化，中文与键都不丢字节
   JsonOwner<SC_JSON_TYPE> reparsed_owner{std::string_view(text)};
-  JsonView<SC_JSON_TYPE> reparsed(reparsed_owner);
+  JsonView reparsed(reparsed_owner);
   EXPECT_EQ(kZh, reparsed.View<Required>("zh"_path).GetString());
   EXPECT_EQ(kZh, reparsed.View<Required>("zh_raw"_path).GetString());
   EXPECT_EQ(kValue,
@@ -1370,7 +1370,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, TraitsToStringKeepsUtf8) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathResolvesDynamicPath) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE> view(json);
+  JsonView view(json);
 
   const std::string prefix = "a";
   const auto path = RUNTIME_PATH(prefix, "b");
@@ -1387,7 +1387,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathInvalidReportsResolveError) {
   ErrorHandler::resolve_errors.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   // 编译期字面量会直接编译失败；运行期路径改由 OnPathResolveError 报告
   const auto empty_segment = RUNTIME_PATH("a", "");
@@ -1401,7 +1401,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathInvalidReportsResolveError) {
   EXPECT_EQ(2u, ErrorHandler::resolve_errors.size());
 
   // 默认 handler 下同样报错（抛异常）
-  JsonView<SC_JSON_TYPE> strict(json);
+  JsonView strict(json);
   EXPECT_THROW((void)strict.View<Required>(unclosed), std::runtime_error);
 }
 
@@ -1413,7 +1413,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, StatefulErrorHandlerCarriesExternalData) {
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
   // handler 按值持有：不需要左值，直接传临时对象也能把外部数据带进异常
-  JsonView<SC_JSON_TYPE, Handler> view(json, Handler("req-001"));
+  JsonView view(json, Handler("req-001"));
 
   try {
     (void)view.View<Required>("no.such.path"_path);
@@ -1448,7 +1448,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, RecordingHandlerKeepsGoingAfterError) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
+  JsonView view(json, handler);
 
   EXPECT_FALSE(view.View<Required>("no.such.path"_path).valid());
   EXPECT_TRUE(view.ViewArray<Required>("point"_path).empty());
@@ -1557,7 +1557,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddString) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
   JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({"a":{},"scalar":7})"));
-  JsonWriter<SC_JSON_TYPE> writer(owner);
+  JsonWriter writer(owner);
 
   auto child = [&](std::string_view key) {
     return JsonTraits<SC_JSON_TYPE>::TryGetChild(owner.json(), key);

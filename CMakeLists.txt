@@ -34,5 +34,6 @@ install(DIRECTORY
 
 add_subdirectory(src)
 add_subdirectory(thirdparty)
+add_subdirectory(benchmark)
 add_subdirectory(test)
 add_subdirectory(obsidian)
