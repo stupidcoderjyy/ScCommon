@@ -26,7 +26,7 @@
 namespace sc::json {
 
 template <>
-struct JsonTraits<rapidjson::Value> {
+struct JsonTypeTraits<rapidjson::Value> {
   using Json = rapidjson::Value;
 
   static bool IsObject(const Json& json) { return json.IsObject(); }
@@ -61,6 +61,12 @@ struct JsonTraits<rapidjson::Value> {
   static bool IsString(const Json& json) { return json.IsString(); }
   static bool IsBool(const Json& json) { return json.IsBool(); }
   static bool IsNull(const Json& json) { return json.IsNull(); }
+
+};
+
+template <>
+struct JsonAccessTraits<rapidjson::Value> {
+  using Json = rapidjson::Value;
 
   static int GetInt(const Json& json) {
     if (json.IsInt64()) {
@@ -120,6 +126,12 @@ struct JsonTraits<rapidjson::Value> {
     return json[static_cast<rapidjson::SizeType>(index)];
   }
 
+};
+
+template <>
+struct JsonOtherTraits<rapidjson::Value> {
+  using Json = rapidjson::Value;
+
   static std::string ToString(const Json& json) {
     rapidjson::StringBuffer buffer;
     rapidjson::Writer writer(buffer);
@@ -172,6 +184,36 @@ struct JsonTraits<rapidjson::Value> {
   }
 };
 
+template <>
+struct JsonWriteTraits<rapidjson::Value> {
+  template <JsonErrorHandler ErrorHandler>
+  static rapidjson::Value* AddChild(
+      JsonOwner<rapidjson::Value, ErrorHandler>& owner,
+      const rapidjson::Value& parent, std::string_view name) noexcept {
+    try {
+      if (!parent.IsObject()) {
+        return nullptr;
+      }
+      auto& node = const_cast<rapidjson::Value&>(parent);
+      const rapidjson::Value key(rapidjson::StringRef(
+          name.data(), static_cast<rapidjson::SizeType>(name.size())));
+      if (auto it = node.FindMember(key); it != node.MemberEnd()) {
+        return &it->value;
+      }
+      auto& allocator = owner.GetAllocator();
+      rapidjson::Value child(rapidjson::kObjectType);
+      node.AddMember(
+          rapidjson::StringRef(name.data(),
+                               static_cast<rapidjson::SizeType>(name.size())),
+          child, allocator);
+      auto it = node.FindMember(key);
+      return it == node.MemberEnd() ? nullptr : &it->value;
+    } catch (...) {
+      return nullptr;
+    }
+  }
+};
+
 template <JsonErrorHandler ErrorHandler>
 class JsonParser<rapidjson::Value, ErrorHandler> {
  public:
@@ -220,9 +262,8 @@ struct OwnedJson<rapidjson::Value> {
 };
 
 template <JsonErrorHandler ErrorHandler>
-class JsonOwner<rapidjson::Value, ErrorHandler>
-    : public JsonOwnerStorage<rapidjson::Value, ErrorHandler> {
- public:
+struct JsonOwner<rapidjson::Value, ErrorHandler>
+    : JsonOwnerStorage<rapidjson::Value, ErrorHandler> {
   explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
     this->err_handler() = std::move(handler);
     this->json_

@@ -1457,3 +1457,34 @@ TEST(SC_JSON_TEST_SUITE_NAME, RecordingHandlerKeepsGoingAfterError) {
   // handler 返回后 view 仍可继续使用
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 }
+
+TEST(SC_JSON_TEST_SUITE_NAME, AutoChainOnWrite) {
+  using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+  JsonOwner<SC_JSON_TYPE, ErrorHandler> owner(
+      std::string_view(R"({"a":{"x":1}})"));
+  const SC_JSON_TYPE& root = owner.json();
+
+  auto resolve = [&]<typename T0>(const T0& path) {
+    return detail::ResolveWithPolicy<SC_JSON_TYPE, std::decay_t<T0>,
+                                     Required, ErrorHandler, true>(
+        &root, path, owner.err_handler(), &owner);
+  };
+
+  // 深度 0：空路径即根节点
+  EXPECT_EQ(&root, resolve(""_path));
+
+  // 深度 1：缺失的一段被建出来
+  ASSERT_NE(nullptr, resolve("p"_path));
+  EXPECT_NE(nullptr, JsonTraits<SC_JSON_TYPE>::TryGetChild(root, "p"));
+
+  // 深度 2：两段都补齐
+  ASSERT_NE(nullptr, resolve("q.r"_path));
+  const SC_JSON_TYPE* q = JsonTraits<SC_JSON_TYPE>::TryGetChild(root, "q");
+  ASSERT_NE(nullptr, q);
+  EXPECT_NE(nullptr, JsonTraits<SC_JSON_TYPE>::TryGetChild(*q, "r"));
+
+  // 已存在：直接返回原节点
+  const SC_JSON_TYPE* existing = resolve("a.x"_path);
+  ASSERT_NE(nullptr, existing);
+  EXPECT_EQ(1, JsonTraits<SC_JSON_TYPE>::GetInt(*existing));
+}

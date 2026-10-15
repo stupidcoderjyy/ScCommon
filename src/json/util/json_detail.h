@@ -37,7 +37,6 @@ void AppendPath(std::string& out, const Path& path) {
   bool first = true;
   for (std::size_t i = 0; i < path.Size(); ++i) {
     const std::string_view token = path[i];
-    // 注意：不能以 out.empty() 判断是否是第一段——out 可能已带有消息前缀
     if (const bool is_index = !token.empty() && token.front() == '[';
         !is_index && !first) {
       out += '.';
@@ -57,15 +56,25 @@ std::string PathString(const Path& path) {
 //
 // Json路径解析
 //
-template <typename Json, bool kCreateOnMissing = false>
-const Json* Step(const Json* node, std::string_view token) {
+template <typename Json, bool kCreateOnMissing = false,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+const Json* Step(const Json* node, std::string_view token,
+                 JsonOwner<Json, ErrorHandler>* owner = nullptr) {
   if (!node || token.empty()) {
     return nullptr;
   }
   if (token.front() != '[') {
-    return JsonTraits<Json>::TryGetChild(*node, token);
+    if (const Json* child = JsonTraits<Json>::TryGetChild(*node, token);
+        child != nullptr) {
+      return child;
+    }
+    if constexpr (kCreateOnMissing) {
+      if (owner) {
+        return JsonTraits<Json>::AddChild(*owner, *node, token);
+      }
+    }
+    return nullptr;
   }
-
   if (token.size() < 2 || token.back() != ']') {
     return nullptr;
   }
@@ -83,11 +92,14 @@ const Json* Step(const Json* node, std::string_view token) {
   return &JsonTraits<Json>::GetArrayElement(*node, index);
 }
 
-template <typename Json, PathLike Path, bool kCreateOnMissing = false>
-Json* Resolve(const Json* cur, const Path& path) {
+template <typename Json, PathLike Path, bool kCreateOnMissing = false,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+Json* Resolve(const Json* cur, const Path& path,
+              JsonOwner<Json, ErrorHandler>* owner = nullptr) {
   Json* node = const_cast<Json*>(cur);
   for (std::size_t i = 0; node != nullptr && i < path.Size(); ++i) {
-    node = const_cast<Json*>(Step<Json, kCreateOnMissing>(node, path[i]));
+    node = const_cast<Json*>(
+        Step<Json, kCreateOnMissing, ErrorHandler>(node, path[i], owner));
   }
   return node;
 }
@@ -95,10 +107,13 @@ Json* Resolve(const Json* cur, const Path& path) {
 template <typename Json, PathLike Path, typename ExistencePolicy,
           JsonErrorHandler ErrorHandler, bool kCreateOnMissing = false>
 Json* ResolveWithPolicy(const Json* cur, const Path& path,
-                        ErrorHandler& handler) {
+                        ErrorHandler& handler,
+                        JsonOwner<Json, ErrorHandler>* owner = nullptr) {
   constexpr auto required = std::is_same_v<ExistencePolicy, Required>;
   constexpr auto create = required && kCreateOnMissing;
-  if (auto* res = detail::Resolve<Json, Path, create>(cur, path); res) {
+  if (auto* res =
+          detail::Resolve<Json, Path, create, ErrorHandler>(cur, path, owner);
+      res) {
     return res;
   }
   if constexpr (required) {

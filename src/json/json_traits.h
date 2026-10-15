@@ -16,8 +16,9 @@ namespace sc::json {
 
 // NOLINTBEGIN
 
+// 节点类型判断
 template <typename Json>
-struct JsonTraits {
+struct JsonTypeTraits {
   static bool IsObject(const Json&) noexcept;
   static bool IsArray(const Json&) noexcept;
   static bool IsInt(const Json&) noexcept;
@@ -28,7 +29,11 @@ struct JsonTraits {
   static bool IsString(const Json&) noexcept;
   static bool IsBool(const Json&) noexcept;
   static bool IsNull(const Json&) noexcept;
+};
 
+// 访问
+template <typename Json>
+struct JsonAccessTraits {
   static int GetInt(const Json&);
   static unsigned int GetUint(const Json&);
   static std::int64_t GetInt64(const Json&);
@@ -40,7 +45,11 @@ struct JsonTraits {
   static const Json* TryGetChild(const Json&, std::string_view key) noexcept;
   static std::size_t GetArraySize(const Json&) noexcept;
   static const Json& GetArrayElement(const Json&, std::size_t index) noexcept;
+};
 
+// 其他
+template <typename Json>
+struct JsonOtherTraits {
   static std::string ToString(const Json&);
   static void ToStream(std::ostream& os, const Json&);
 
@@ -49,6 +58,22 @@ struct JsonTraits {
   static MemberIterator MemberBegin(const Json&) noexcept;
   static MemberIterator MemberEnd(const Json&) noexcept;
 };
+
+template <typename Json, JsonErrorHandler>
+struct JsonOwner;
+
+template <typename Json>
+struct JsonWriteTraits {
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddChild(JsonOwner<Json, ErrorHandler>& owner,
+                        const Json& parent, std::string_view name) noexcept;
+};
+
+template <typename Json>
+struct JsonTraits : JsonTypeTraits<Json>,
+                    JsonAccessTraits<Json>,
+                    JsonOtherTraits<Json>,
+                    JsonWriteTraits<Json> {};
 
 // 从字符串/输入流构造json，构造出json的所有权归JsonParser所有
 // 发生错误调用ErrorHandler::OnJsonParseError

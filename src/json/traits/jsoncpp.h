@@ -22,7 +22,7 @@
 namespace sc::json {
 
 template <>
-struct JsonTraits<Json::Value> {
+struct JsonTypeTraits<Json::Value> {
   using Json = Json::Value;
 
   static bool IsObject(const Json& json) { return json.isObject(); }
@@ -35,6 +35,12 @@ struct JsonTraits<Json::Value> {
   static bool IsString(const Json& json) { return json.isString(); }
   static bool IsBool(const Json& json) { return json.isBool(); }
   static bool IsNull(const Json& json) { return json.isNull(); }
+
+};
+
+template <>
+struct JsonAccessTraits<Json::Value> {
+  using Json = Json::Value;
 
   static int GetInt(const Json& json) { return json.asInt(); }
   static unsigned int GetUint(const Json& json) { return json.asUInt(); }
@@ -54,6 +60,12 @@ struct JsonTraits<Json::Value> {
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json[static_cast<Json::ArrayIndex>(index)];
   }
+
+};
+
+template <>
+struct JsonOtherTraits<Json::Value> {
+  using Json = Json::Value;
 
   static std::string ToString(const Json& json) {
     // 紧凑序列化。jsoncpp 默认把非 ASCII 转义成 \uXXXX，这里改为直接输出
@@ -112,6 +124,28 @@ struct JsonTraits<Json::Value> {
   }
 };
 
+template <>
+struct JsonWriteTraits<Json::Value> {
+  template <JsonErrorHandler ErrorHandler>
+  static Json::Value* AddChild(JsonOwner<Json::Value, ErrorHandler>&,
+                               const Json::Value& parent,
+                               std::string_view name) noexcept {
+    try {
+      auto& node = const_cast<Json::Value&>(parent);
+      if (!node.isObject()) {
+        return nullptr;
+      }
+      const std::string key(name);
+      if (!node.isMember(key)) {
+        node[key] = Json::Value(Json::objectValue);
+      }
+      return &node[key];
+    } catch (...) {
+      return nullptr;
+    }
+  }
+};
+
 template <JsonErrorHandler ErrorHandler>
 class JsonParser<Json::Value, ErrorHandler> {
  public:
@@ -156,9 +190,8 @@ class JsonParser<Json::Value, ErrorHandler> {
 // JsonOwner 的 JsonCpp 偏特化：只补三种构造，特殊成员函数继承自
 // JsonOwnerStorage
 template <JsonErrorHandler ErrorHandler>
-class JsonOwner<Json::Value, ErrorHandler>
-    : public JsonOwnerStorage<Json::Value, ErrorHandler> {
- public:
+struct JsonOwner<Json::Value, ErrorHandler>
+    : JsonOwnerStorage<Json::Value, ErrorHandler> {
   explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
     this->err_handler() = std::move(handler);
     Json::CharReaderBuilder builder;

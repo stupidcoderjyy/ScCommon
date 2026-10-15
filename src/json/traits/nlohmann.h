@@ -20,7 +20,7 @@
 namespace sc::json {
 
 template <>
-struct JsonTraits<nlohmann::json> {
+struct JsonTypeTraits<nlohmann::json> {
   using Json = nlohmann::json;
 
   static bool IsObject(const Json& json) { return json.is_object(); }
@@ -69,6 +69,12 @@ struct JsonTraits<nlohmann::json> {
   static bool IsBool(const Json& json) { return json.is_boolean(); }
   static bool IsNull(const Json& json) { return json.is_null(); }
 
+};
+
+template <>
+struct JsonAccessTraits<nlohmann::json> {
+  using Json = nlohmann::json;
+
   static int GetInt(const Json& json) { return json.get<int>(); }
   static unsigned int GetUint(const Json& json) {
     return json.get<unsigned int>();
@@ -96,6 +102,12 @@ struct JsonTraits<nlohmann::json> {
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json.at(index);
   }
+
+};
+
+template <>
+struct JsonOtherTraits<nlohmann::json> {
+  using Json = nlohmann::json;
 
   static std::string ToString(const Json& json) { return json.dump(); }
 
@@ -138,6 +150,29 @@ struct JsonTraits<nlohmann::json> {
   }
 };
 
+template <>
+struct JsonWriteTraits<nlohmann::json> {
+  template <JsonErrorHandler ErrorHandler>
+  static nlohmann::json* AddChild(JsonOwner<nlohmann::json, ErrorHandler>&,
+                                  const nlohmann::json& parent,
+                                  std::string_view name) noexcept {
+    try {
+      auto& node = const_cast<nlohmann::json&>(parent);
+      if (!node.is_object()) {
+        return nullptr;
+      }
+      const std::string key(name);
+      if (auto it = node.find(key); it != node.end()) {
+        return &*it;
+      }
+      node[key] = nlohmann::json::object();
+      return &node[key];
+    } catch (...) {
+      return nullptr;
+    }
+  }
+};
+
 template <JsonErrorHandler ErrorHandler>
 class JsonParser<nlohmann::json, ErrorHandler> {
  public:
@@ -174,9 +209,8 @@ class JsonParser<nlohmann::json, ErrorHandler> {
 // JsonOwner 的 nlohmann 偏特化：只补三种构造，特殊成员函数继承自
 // JsonOwnerStorage
 template <JsonErrorHandler ErrorHandler>
-class JsonOwner<nlohmann::json, ErrorHandler>
-    : public JsonOwnerStorage<nlohmann::json, ErrorHandler> {
- public:
+struct JsonOwner<nlohmann::json, ErrorHandler>
+    : JsonOwnerStorage<nlohmann::json, ErrorHandler> {
   explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
     this->err_handler() = std::move(handler);
     try {
