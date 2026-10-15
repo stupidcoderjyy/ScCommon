@@ -8,9 +8,9 @@
 #include <type_traits>
 #include <utility>
 
-#include "json_access_mixin.h"
+#include "mixin/json_access_mixin.h"
 #include "json_path.h"
-#include "json_traits_mixin.h"
+#include "mixin/json_traits_mixin.h"
 #include "util/json_detail.h"
 #include "util/json_error.h"
 

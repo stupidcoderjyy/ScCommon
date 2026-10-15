@@ -9,21 +9,10 @@
 #include <string>
 #include <string_view>
 
-#include "json_traits.h"
+#include "../json_traits.h"
 
 namespace sc::json {
 
-// 把 JsonTraits<Json> 的节点操作直接暴露为成员函数，
-// JsonParser 与 JsonView 都继承它，于是不必再写
-// JsonTraits<Json>::X(parser.json())。
-//
-// Derived 需要提供：
-//   const Json* node() const noexcept;    // 当前节点；无效 view 返回 nullptr
-//
-// 无效节点（无效 view）上的行为：
-//   判定类（Is*）返回 false；TryGetChild 返回 nullptr；GetArraySize 返回 0；
-//   取值类（Get*）返回默认构造值；GetArrayElement 返回静态空节点；
-//   ToString 返回空串；MemberBegin/MemberEnd 返回默认迭代器（构成空区间）。
 template <typename Derived, typename Json>
 class JsonTraitsMixin {
  public:

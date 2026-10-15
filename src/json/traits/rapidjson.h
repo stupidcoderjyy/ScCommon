@@ -392,88 +392,43 @@ struct JsonWriteTraits<rapidjson::Value> {
   }
 };
 
-template <JsonErrorHandler ErrorHandler>
-class JsonParser<rapidjson::Value, ErrorHandler> {
- public:
-  JsonParser() = default;
-
-  explicit JsonParser(std::string_view json, ErrorHandler error_handler = {}) {
-    doc_.emplace();  // Document 自带的解析栈按需构造，只用 root 构造时不分配
-    doc_->Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(json.data(),
-                                                                  json.size());
-    if (doc_->HasParseError()) {
-      std::runtime_error e("rapidjson parse error at offset " +
-                           std::to_string(doc_->GetErrorOffset()));
-      error_handler.OnJsonParseError(json, e);
-      throw std::move(e);
-    }
-  }
-  explicit JsonParser(std::istream& is, ErrorHandler error_handler = {}) {
-    doc_.emplace();
-    rapidjson::IStreamWrapper wrapper(is);
-    doc_->ParseStream(wrapper);
-    if (doc_->HasParseError()) {
-      std::runtime_error e("rapidjson parse error at offset " +
-                           std::to_string(doc_->GetErrorOffset()));
-      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
-      error_handler.OnJsonParseError(std::string_view{}, e);
-      throw std::move(e);
-    }
-  }
-  JsonParser(const JsonParser&) = delete;
-  JsonParser(JsonParser&&) = delete;
-  JsonParser& operator=(const JsonParser&) = delete;
-  JsonParser& operator=(JsonParser&&) = delete;
-
-  // Document 是 Value 的子类，且自带分配器；分配器随 JsonParser 存活，
-  // 因此返回的 Value 引用在 JsonParser 生命周期内始终有效。
-  [[nodiscard]] const rapidjson::Value& json() const { return *doc_; }
-
- private:
-  std::optional<rapidjson::Document> doc_;
-};
-
-// rapidjson::Value本身不持有数据
+// rapidjson::Value 本身不持有数据
 template <>
 struct OwnedJson<rapidjson::Value> {
   using Type = rapidjson::Document;
 };
 
 template <JsonErrorHandler ErrorHandler>
+struct JsonParseTraits<rapidjson::Value, ErrorHandler> {
+  static void Parse(std::string_view text, rapidjson::Document& out,
+                    ErrorHandler& handler) {
+    out.template Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(
+        text.data(), text.size());
+    if (out.HasParseError()) {
+      std::runtime_error e("rapidjson parse error at offset " +
+                           std::to_string(out.GetErrorOffset()));
+      handler.OnJsonParseError(text, e);
+      throw std::move(e);
+    }
+  }
+
+  static void Parse(std::istream& is, rapidjson::Document& out,
+                    ErrorHandler& handler) {
+    rapidjson::IStreamWrapper wrapper(is);
+    out.ParseStream(wrapper);
+    if (out.HasParseError()) {
+      std::runtime_error e("rapidjson parse error at offset " +
+                           std::to_string(out.GetErrorOffset()));
+      handler.OnJsonParseError(std::string_view{}, e);
+      throw std::move(e);
+    }
+  }
+};
+
+template <JsonErrorHandler ErrorHandler>
 struct JsonOwner<rapidjson::Value, ErrorHandler>
     : JsonOwnerStorage<rapidjson::Value, ErrorHandler> {
-  explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    this->json_
-        .template Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(
-            json.data(), json.size());
-    if (this->json_.HasParseError()) {
-      std::runtime_error e("rapidjson parse error at offset " +
-                           std::to_string(this->json_.GetErrorOffset()));
-      this->err_handler().OnJsonParseError(json, e);
-      throw std::move(e);
-    }
-    this->MarkValid();
-  }
-
-  explicit JsonOwner(std::istream& is, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    rapidjson::IStreamWrapper wrapper(is);
-    this->json_.ParseStream(wrapper);
-    if (this->json_.HasParseError()) {
-      std::runtime_error e("rapidjson parse error at offset " +
-                           std::to_string(this->json_.GetErrorOffset()));
-      this->err_handler().OnJsonParseError(std::string_view{}, e);
-      throw std::move(e);
-    }
-    this->MarkValid();
-  }
-
-  explicit JsonOwner(rapidjson::Document&& doc, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    this->json_ = std::move(doc);
-    this->MarkValid();
-  }
+  using JsonOwnerStorage<rapidjson::Value, ErrorHandler>::JsonOwnerStorage;
 
   rapidjson::Document::AllocatorType& GetAllocator() {
     return this->json_.GetAllocator();

@@ -10,11 +10,11 @@
 #include <type_traits>
 #include <utility>
 
-#include "json_path.h"
-#include "reflect/get_fields.h"
-#include "util/json_detail.h"
-#include "util/json_error.h"
-#include "util/json_read_write.h"
+#include "../json_path.h"
+#include "../../reflect/get_fields.h"
+#include "../util/json_detail.h"
+#include "../util/json_error.h"
+#include "../util/json_read_write.h"
 
 namespace sc::json {
 

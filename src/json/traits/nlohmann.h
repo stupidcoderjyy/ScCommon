@@ -350,73 +350,32 @@ struct JsonWriteTraits<nlohmann::json> {
 };
 
 template <JsonErrorHandler ErrorHandler>
-class JsonParser<nlohmann::json, ErrorHandler> {
- public:
-  JsonParser() = default;
-
-  explicit JsonParser(std::string_view json, ErrorHandler error_handler = {}) {
+struct JsonParseTraits<nlohmann::json, ErrorHandler> {
+  static void Parse(std::string_view text, nlohmann::json& out,
+                    ErrorHandler& handler) {
     try {
-      json_ = nlohmann::json::parse(json.data(), json.data() + json.size());
+      out = nlohmann::json::parse(text.data(), text.data() + text.size());
     } catch (std::exception& e) {
-      error_handler.OnJsonParseError(json, e);
+      handler.OnJsonParseError(text, e);
       throw;
     }
   }
-  explicit JsonParser(std::istream& is, ErrorHandler error_handler = {}) {
+
+  static void Parse(std::istream& is, nlohmann::json& out,
+                    ErrorHandler& handler) {
     try {
-      json_ = nlohmann::json::parse(is);
+      out = nlohmann::json::parse(is);
     } catch (std::exception& e) {
-      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
-      error_handler.OnJsonParseError(std::string_view{}, e);
+      handler.OnJsonParseError(std::string_view{}, e);
       throw;
     }
   }
-  JsonParser(const JsonParser&) = delete;
-  JsonParser(JsonParser&&) = delete;
-  JsonParser& operator=(const JsonParser&) = delete;
-  JsonParser& operator=(JsonParser&&) = delete;
-
-  [[nodiscard]] const nlohmann::json& json() const { return json_; }
-
- private:
-  nlohmann::json json_;
 };
 
-// JsonOwner 的 nlohmann 偏特化：只补三种构造，特殊成员函数继承自
-// JsonOwnerStorage
 template <JsonErrorHandler ErrorHandler>
 struct JsonOwner<nlohmann::json, ErrorHandler>
     : JsonOwnerStorage<nlohmann::json, ErrorHandler> {
-  explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    try {
-      this->json_ =
-          nlohmann::json::parse(json.data(), json.data() + json.size());
-    } catch (std::exception& e) {
-      this->err_handler().OnJsonParseError(json, e);
-      throw;
-    }
-    this->MarkValid();
-  }
-
-  explicit JsonOwner(std::istream& is, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    try {
-      this->json_ = nlohmann::json::parse(is);
-    } catch (std::exception& e) {
-      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
-      this->err_handler().OnJsonParseError(std::string_view{}, e);
-      throw;
-    }
-    this->MarkValid();
-  }
-
-  // 夺舍外部 json：不解析、不抛解析异常，只接管所有权
-  explicit JsonOwner(nlohmann::json&& json, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    this->json_ = std::move(json);
-    this->MarkValid();
-  }
+  using JsonOwnerStorage<nlohmann::json, ErrorHandler>::JsonOwnerStorage;
 };
 
 }  // namespace sc::json

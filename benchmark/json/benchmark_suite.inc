@@ -288,7 +288,7 @@ static void SC_BENCH_NAME(WriteNestedOurs)(benchmark::State& state) {
   JsonWriter<SC_BENCH_TYPE> writer(owner);
   for (auto _ : state) {
     writer["a.b"_path] = 1;
-    writer["new.deep"_path] = 2;
+    writer.Set<Required>("new.deep"_path, 2);
     benchmark::DoNotOptimize(owner.json());
   }
 }

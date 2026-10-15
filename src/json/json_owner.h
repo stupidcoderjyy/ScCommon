@@ -10,15 +10,6 @@
 
 namespace sc::json {
 
-// 在JsonOwner中实际存储的类型
-template <typename Json>
-struct OwnedJson {
-  using Type = Json;
-};
-
-template <typename Json>
-using OwnedJsonT = OwnedJson<Json>::Type;
-
 template <typename Json,
           JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
 struct JsonOwnerStorage {
@@ -28,6 +19,18 @@ struct JsonOwnerStorage {
       : json_(std::move(json)),
         err_handler_(std::move(handler)),
         valid_(true) {}
+  explicit JsonOwnerStorage(std::string_view text,
+                            ErrorHandler handler = ErrorHandler{}) {
+    err_handler_ = std::move(handler);
+    JsonParseTraits<Json, ErrorHandler>::Parse(text, json_, err_handler_);
+    valid_ = true;
+  }
+  explicit JsonOwnerStorage(std::istream& is,
+                            ErrorHandler handler = ErrorHandler{}) {
+    err_handler_ = std::move(handler);
+    JsonParseTraits<Json, ErrorHandler>::Parse(is, json_, err_handler_);
+    valid_ = true;
+  }
   JsonOwnerStorage(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage& operator=(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage(JsonOwnerStorage&& o) noexcept

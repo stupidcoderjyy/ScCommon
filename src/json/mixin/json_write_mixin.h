@@ -10,12 +10,12 @@
 #include <tuple>
 #include <type_traits>
 
-#include "json_owner.h"
-#include "json_path.h"
-#include "json_traits.h"
-#include "reflect/get_fields.h"
-#include "util/json_detail.h"
-#include "util/json_read_write.h"
+#include "../json_owner.h"
+#include "../json_path.h"
+#include "../json_traits.h"
+#include "../../reflect/get_fields.h"
+#include "../util/json_detail.h"
+#include "../util/json_read_write.h"
 
 namespace sc::json {
 
@@ -25,38 +25,40 @@ class JsonWriteMixin {
   using Self = Derived;
   using OwnerType = JsonOwner<Json, ErrorHandler>;
 
-  template <typename ExistencePolicy = Required, std::size_t N, typename T>
+  template <typename ExistencePolicy = Optional, std::size_t N, typename T>
   Self& Set(const Parts<N>& path, const T& value) {
+    OwnerType* owner = self().owner();
+    if (owner == nullptr) {
+      return self();
+    }
     if constexpr (N == 0) {
       if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-        self().owner().err_handler().OnPathResolveError(
-            detail::PathString(path));
+        owner->err_handler().OnPathResolveError(detail::PathString(path));
       }
       return self();
     } else {
       Json* parent = nullptr;
       if constexpr (N == 1) {
-        parent = &self().owner().json();
+        parent = &owner->json();
       } else {
         const auto sub = path.template Sub<0, N - 1>();
         parent = detail::ResolveWithPolicy<Json, N - 1, ExistencePolicy,
                                            ErrorHandler, true>(
-            &self().owner().json(), sub, self().owner().err_handler(),
-            &self().owner());
+            &owner->json(), sub, owner->err_handler(), owner);
       }
       if (parent == nullptr) {
         return self();
       }
       if (!WriteValue<ExistencePolicy>(*parent, path[N - 1], value)) {
         if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-          self().owner().err_handler().OnTypeMismatch(detail::PathString(path));
+          owner->err_handler().OnTypeMismatch(detail::PathString(path));
         }
       }
       return self();
     }
   }
 
-  template <std::size_t N, typename ExistencePolicy = Required>
+  template <std::size_t N, typename ExistencePolicy = Optional>
   class Proxy {
    public:
     Proxy(Self& writer, const Parts<N>& path) : writer_(&writer), path_(path) {}
@@ -72,7 +74,7 @@ class JsonWriteMixin {
     Parts<N> path_;
   };
 
-  template <typename ExistencePolicy = Required, std::size_t N>
+  template <typename ExistencePolicy = Optional, std::size_t N>
   Proxy<N, ExistencePolicy> operator[](const Parts<N>& path) {
     return Proxy<N, ExistencePolicy>(self(), path);
   }
@@ -83,7 +85,7 @@ class JsonWriteMixin {
   template <typename ExistencePolicy, typename T>
   bool WriteValue(const Json& parent, std::string_view name, const T& value) {
     if constexpr (reflect::is_registered_v<T>) {
-      Json* child = JsonTraits<Json>::AddChild(self().owner(), parent, name);
+      Json* child = JsonTraits<Json>::AddChild(*self().owner(), parent, name);
       if (child == nullptr) {
         return false;
       }
@@ -97,7 +99,7 @@ class JsonWriteMixin {
           reflect::Descriptor<T>::fields());
       return ok;
     } else if constexpr (detail::is_sequence_v<T>) {
-      Json* array = JsonTraits<Json>::AddList(self().owner(), parent, name);
+      Json* array = JsonTraits<Json>::AddList(*self().owner(), parent, name);
       if (array == nullptr) {
         return false;
       }
@@ -108,7 +110,7 @@ class JsonWriteMixin {
       }
       return true;
     } else if constexpr (detail::is_map_v<T>) {
-      Json* child = JsonTraits<Json>::AddChild(self().owner(), parent, name);
+      Json* child = JsonTraits<Json>::AddChild(*self().owner(), parent, name);
       if (child == nullptr) {
         return false;
       }
@@ -120,19 +122,19 @@ class JsonWriteMixin {
       return true;
     } else if constexpr (detail::is_optional_v<T>) {
       if (!value.has_value()) {
-        return JsonTraits<Json>::AddNull(self().owner(), parent, name) !=
+        return JsonTraits<Json>::AddNull(*self().owner(), parent, name) !=
                nullptr;
       }
       return WriteValue<ExistencePolicy>(parent, name, *value);
     } else {
-      return Injector<Json, T>::Inject(self().owner(), parent, name, value);
+      return Injector<Json, T>::Inject(*self().owner(), parent, name, value);
     }
   }
 
   template <typename ExistencePolicy, typename T>
   bool WriteElement(Json& array, const T& value) {
     if constexpr (reflect::is_registered_v<T>) {
-      Json* child = JsonTraits<Json>::AppendObject(self().owner(), array);
+      Json* child = JsonTraits<Json>::AppendObject(*self().owner(), array);
       if (child == nullptr) {
         return false;
       }
@@ -146,7 +148,7 @@ class JsonWriteMixin {
           reflect::Descriptor<T>::fields());
       return ok;
     } else {
-      return JsonTraits<Json>::Append(self().owner(), array, value) != nullptr;
+      return JsonTraits<Json>::Append(*self().owner(), array, value) != nullptr;
     }
   }
 };

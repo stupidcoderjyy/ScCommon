@@ -63,8 +63,8 @@ struct SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)
         request_id_(std::move(request_id)),
         message_(std::move(message)) {}
 
-  const std::string& RequestId() const noexcept { return request_id_; }
-  const std::string& Message() const noexcept { return message_; }
+  [[nodiscard]] const std::string& RequestId() const noexcept { return request_id_; }
+  [[nodiscard]] const std::string& Message() const noexcept { return message_; }
 
  private:
   std::string request_id_;
@@ -273,8 +273,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, OwnerOutlivesStream) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, ParserFromStream) {
   std::istringstream input(R"({"a":{"b":42}})");
-  JsonParser<SC_JSON_TYPE> parser(input);
-  JsonView view(parser.json());
+  JsonOwner<SC_JSON_TYPE> owner(input);
+  JsonView view(owner);
   EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
 }
 
@@ -1069,9 +1069,9 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetScalarsReturnsValue) {
   // 所以要么先赋值给局部变量，要么把整个调用再包一层括号
   const int i = view.Get<int, Required>("a.b"_path);
   EXPECT_EQ(42, i);
-  const std::int64_t big = view.Get<std::int64_t, Required>("big"_path);
+  const auto big = view.Get<std::int64_t, Required>("big"_path);
   EXPECT_EQ(9007199254740993LL, big);
-  const std::string s = view.Get<std::string, Required>("s"_path);
+  const auto s = view.Get<std::string, Required>("s"_path);
   EXPECT_EQ(std::string("hello"), s);
   EXPECT_DOUBLE_EQ(3.14, (view.Get<double, Required>("d"_path)));
   EXPECT_TRUE((view.Get<bool, Required>("flag"_path)));
@@ -1088,10 +1088,10 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetScalarsReturnsValue) {
 
   // JSON null 不是 int → Optional 回落默认值；nullopt 语义用 optional 目标表达
   EXPECT_EQ(-1, (view.Get<int, Optional>("nil"_path, -1)));
-  const std::optional<int> nil =
+  const auto nil =
       view.Get<std::optional<int>, Required>("nil"_path);
   EXPECT_FALSE(nil.has_value());
-  const std::optional<int> hit =
+  const auto hit =
       view.Get<std::optional<int>, Required>("a.b"_path);
   EXPECT_EQ(42, hit.value_or(0));
 }
@@ -1140,7 +1140,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetArrayAndGetMapReturnContainers) {
   const std::vector<int> missing =
       view.GetArray<std::vector<int>, Optional>("no.such"_path);
   EXPECT_TRUE(missing.empty());
-  const std::map<std::string, int> not_object =
+  const auto not_object =
       view.GetMap<std::map<std::string, int>, Optional>("list"_path);
   EXPECT_TRUE(not_object.empty());
 
@@ -1161,7 +1161,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetOnArrowAndRuntimePath) {
 
   // 箭头链式：元素是对象时直接取值
   auto objects = view.ViewArray<Required>("obj_list"_path);
-  const std::int64_t first = objects.begin()->Get<std::int64_t, Required>("id"_path);
+  const auto first = objects.begin()->Get<std::int64_t, Required>("id"_path);
   EXPECT_EQ(1, first);
   const std::int64_t second =
       (objects.begin() + 1)->Get<std::int64_t, Required>("id"_path);
@@ -1223,7 +1223,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetArrayOfDoubleFromNestedPath) {
   EXPECT_DOUBLE_EQ(2.5, values[1]);
 
   // 省略策略
-  const std::vector<double> values2 =
+  const auto values2 =
       view.GetArray<std::vector<double>>("mix_res[0].value"_path);
   EXPECT_EQ(values, values2);
 
@@ -1612,14 +1612,22 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
   EXPECT_EQ(5, TraitGet<int>(
                    *JsonTraits<SC_JSON_TYPE>::TryGetChild(*a, "x")));
 
+  // 默认策略是 Optional：缺失的中间节点不建链、非法路径不报错，整次赋值静默忽略
   writer["new.deep"_path] = 9;
+  EXPECT_EQ(nullptr, child("new"));
+  writer[""_path] = 1;
+  writer["scalar.y"_path] = 1;
+  EXPECT_EQ(7, TraitGet<int>(*child("scalar")));
+
+  // 显式 Required：空路径/父节点非对象上报错，缺失的中间节点自动建链
+  EXPECT_THROW((writer.Set<Required>(""_path, 1)), std::runtime_error);
+  EXPECT_THROW((writer.Set<Required>("scalar.y"_path, 1)), std::runtime_error);
+
+  writer.Set<Required>("new.deep"_path, 9);
   const SC_JSON_TYPE* created = child("new");
   ASSERT_NE(nullptr, created);
   EXPECT_EQ(9, TraitGet<int>(
                    *JsonTraits<SC_JSON_TYPE>::TryGetChild(*created, "deep")));
-
-  EXPECT_THROW(writer[""_path] = 1, std::runtime_error);
-  EXPECT_THROW(writer["scalar.y"_path] = 1, std::runtime_error);
 }
 
 struct SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME) {

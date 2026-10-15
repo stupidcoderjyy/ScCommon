@@ -16,6 +16,25 @@ namespace sc::json {
 
 // NOLINTBEGIN
 
+// JsonOwner 中实际存储的类型（RapidJSON 的 Value 不自带分配器，持有 Document）
+template <typename Json>
+struct OwnedJson {
+  using Type = Json;
+};
+
+template <typename Json>
+using OwnedJsonT = OwnedJson<Json>::Type;
+
+// 各库特化：把文本/流解析进持有类型，失败时调用 handler 再抛出
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+struct JsonParseTraits {
+  static void Parse(std::string_view text, OwnedJsonT<Json>& out,
+                    ErrorHandler& handler);
+  static void Parse(std::istream& is, OwnedJsonT<Json>& out,
+                    ErrorHandler& handler);
+};
+
 // 节点类型判断
 template <typename Json>
 struct JsonTypeTraits {
@@ -122,26 +141,6 @@ struct JsonTraits : JsonTypeTraits<Json>,
                     JsonAccessTraits<Json>,
                     JsonOtherTraits<Json>,
                     JsonWriteTraits<Json> {};
-
-// 从字符串/输入流构造json，构造出json的所有权归JsonParser所有
-// 发生错误调用ErrorHandler::OnJsonParseError
-template <typename Json,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
-class JsonParser {
- public:
-  JsonParser() = default;
-  JsonParser(std::string_view json, ErrorHandler error_handler = {});
-  JsonParser(std::istream& is, ErrorHandler error_handler = {});
-  JsonParser(const JsonParser&) = delete;
-  JsonParser(JsonParser&&) = delete;
-  JsonParser& operator=(const JsonParser&) = delete;
-  JsonParser& operator=(JsonParser&&) = delete;
-
-  const Json& json() const { return json_; }
-
- private:
-  Json json_;
-};
 
 // NOLINTEND
 

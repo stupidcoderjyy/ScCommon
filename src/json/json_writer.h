@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "json_owner.h"
-#include "json_write_mixin.h"
+#include "mixin/json_write_mixin.h"
 
 namespace sc::json {
 
@@ -21,20 +21,15 @@ class JsonWriter
   using Self = JsonWriter;
   using OwnerType = JsonOwner<Json, ErrorHandler>;
 
-  explicit JsonWriter(Json&& json, ErrorHandler handler = ErrorHandler{})
-      : owned_(std::in_place, std::move(json), std::move(handler)),
-        owner_(&*owned_) {}
-  explicit JsonWriter(OwnerType& owner) : owner_(&owner) {}
+  explicit JsonWriter(OwnerType& owner) : owner_(owner.valid() ? &owner : nullptr) {}
   JsonWriter() = delete;
 
-  [[nodiscard]] bool valid() const noexcept { return owner_; }
   [[nodiscard]] const Json* node() const noexcept {
     return owner_ ? &owner_->json() : nullptr;
   }
-  [[nodiscard]] OwnerType& owner() noexcept { return *owner_; }
 
+  [[nodiscard]] OwnerType* owner() noexcept { return owner_; }
  private:
-  std::optional<OwnerType> owned_;
   OwnerType* owner_;
 };
 

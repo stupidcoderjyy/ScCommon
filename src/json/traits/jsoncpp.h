@@ -300,87 +300,40 @@ struct JsonWriteTraits<Json::Value> {
 };
 
 template <JsonErrorHandler ErrorHandler>
-class JsonParser<Json::Value, ErrorHandler> {
- public:
-  JsonParser() = default;
-
-  explicit JsonParser(std::string_view json, ErrorHandler error_handler = {}) {
-    Json::CharReaderBuilder builder;
-    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-    Json::Value parsed;
+struct JsonParseTraits<Json::Value, ErrorHandler> {
+  static void Parse(std::string_view text, ::Json::Value& out,
+                    ErrorHandler& handler) {
+    ::Json::CharReaderBuilder builder;
+    std::unique_ptr<::Json::CharReader> reader(builder.newCharReader());
+    ::Json::Value parsed;
     std::string errors;
-    if (!reader->parse(json.data(), json.data() + json.size(), &parsed,
+    if (!reader->parse(text.data(), text.data() + text.size(), &parsed,
                        &errors)) {
       std::runtime_error e("jsoncpp parse error: " + errors);
-      error_handler.OnJsonParseError(json, e);
+      handler.OnJsonParseError(text, e);
       throw std::move(e);
     }
-    json_ = std::move(parsed);
+    out = std::move(parsed);
   }
-  explicit JsonParser(std::istream& is, ErrorHandler error_handler = {}) {
-    Json::Value parsed;
+
+  static void Parse(std::istream& is, ::Json::Value& out,
+                    ErrorHandler& handler) {
+    ::Json::Value parsed;
     std::string errors;
-    if (Json::CharReaderBuilder builder;
-        !Json::parseFromStream(builder, is, &parsed, &errors)) {
+    if (::Json::CharReaderBuilder builder;
+        !::Json::parseFromStream(builder, is, &parsed, &errors)) {
       std::runtime_error e("jsoncpp parse error: " + errors);
-      // 流式解析无法回读原始文本，交给 handler 的 json 文本为空
-      error_handler.OnJsonParseError(std::string_view{}, e);
+      handler.OnJsonParseError(std::string_view{}, e);
       throw std::move(e);
     }
-    json_ = std::move(parsed);
+    out = std::move(parsed);
   }
-  JsonParser(const JsonParser&) = delete;
-  JsonParser(JsonParser&&) = delete;
-  JsonParser& operator=(const JsonParser&) = delete;
-  JsonParser& operator=(JsonParser&&) = delete;
-
-  [[nodiscard]] const Json::Value& json() const { return json_; }
-
- private:
-  Json::Value json_;
 };
 
-// JsonOwner 的 JsonCpp 偏特化：只补三种构造，特殊成员函数继承自
-// JsonOwnerStorage
 template <JsonErrorHandler ErrorHandler>
 struct JsonOwner<Json::Value, ErrorHandler>
     : JsonOwnerStorage<Json::Value, ErrorHandler> {
-  explicit JsonOwner(std::string_view json, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    Json::CharReaderBuilder builder;
-    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-    Json::Value parsed;
-    std::string errors;
-    if (!reader->parse(json.data(), json.data() + json.size(), &parsed,
-                       &errors)) {
-      std::runtime_error e("jsoncpp parse error: " + errors);
-      this->err_handler().OnJsonParseError(json, e);
-      throw std::move(e);
-    }
-    this->json_ = std::move(parsed);
-    this->MarkValid();
-  }
-
-  explicit JsonOwner(std::istream& is, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    Json::Value parsed;
-    std::string errors;
-    if (Json::CharReaderBuilder builder;
-        !::Json::parseFromStream(builder, is, &parsed, &errors)) {
-      std::runtime_error e("jsoncpp parse error: " + errors);
-      this->err_handler().OnJsonParseError(std::string_view{}, e);
-      throw std::move(e);
-    }
-    this->json_ = std::move(parsed);
-    this->MarkValid();
-  }
-
-  // 夺舍外部 json：不解析、不抛解析异常，只接管所有权
-  explicit JsonOwner(Json::Value&& value, ErrorHandler handler = {}) {
-    this->err_handler() = std::move(handler);
-    this->json_ = std::move(value);
-    this->MarkValid();
-  }
+  using JsonOwnerStorage<Json::Value, ErrorHandler>::JsonOwnerStorage;
 };
 
 }  // namespace sc::json
