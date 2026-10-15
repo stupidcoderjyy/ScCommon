@@ -1488,3 +1488,68 @@ TEST(SC_JSON_TEST_SUITE_NAME, AutoChainOnWrite) {
   ASSERT_NE(nullptr, existing);
   EXPECT_EQ(1, JsonTraits<SC_JSON_TYPE>::GetInt(*existing));
 }
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddInt) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node =
+      JsonTraits<SC_JSON_TYPE>::AddInt(owner, owner.json(), "v", 42);
+  ASSERT_NE(nullptr, node);
+  EXPECT_EQ(42, JsonTraits<SC_JSON_TYPE>::GetInt(*node));
+  EXPECT_EQ(node, JsonTraits<SC_JSON_TYPE>::TryGetChild(owner.json(), "v"));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddUint) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node =
+      JsonTraits<SC_JSON_TYPE>::AddUint(owner, owner.json(), "v", 7u);
+  ASSERT_NE(nullptr, node);
+  EXPECT_EQ(7u, JsonTraits<SC_JSON_TYPE>::GetUint(*node));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddInt64) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node = JsonTraits<SC_JSON_TYPE>::AddInt64(
+      owner, owner.json(), "v", -9007199254740993LL);
+  ASSERT_NE(nullptr, node);
+  EXPECT_EQ(-9007199254740993LL, JsonTraits<SC_JSON_TYPE>::GetInt64(*node));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddUint64) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node = JsonTraits<SC_JSON_TYPE>::AddUint64(
+      owner, owner.json(), "v", 18446744073709551615ULL);
+  ASSERT_NE(nullptr, node);
+  EXPECT_EQ(18446744073709551615ULL,
+            JsonTraits<SC_JSON_TYPE>::GetUint64(*node));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddDouble) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node =
+      JsonTraits<SC_JSON_TYPE>::AddDouble(owner, owner.json(), "v", 3.5);
+  ASSERT_NE(nullptr, node);
+  EXPECT_DOUBLE_EQ(3.5, JsonTraits<SC_JSON_TYPE>::GetDouble(*node));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddBool) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node =
+      JsonTraits<SC_JSON_TYPE>::AddBool(owner, owner.json(), "v", true);
+  ASSERT_NE(nullptr, node);
+  EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::GetBool(*node));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddNull) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node = JsonTraits<SC_JSON_TYPE>::AddNull(owner, owner.json(), "v");
+  ASSERT_NE(nullptr, node);
+  EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsNull(*node));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriteAddString) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  SC_JSON_TYPE* node =
+      JsonTraits<SC_JSON_TYPE>::AddString(owner, owner.json(), "v", "hi");
+  ASSERT_NE(nullptr, node);
+  EXPECT_EQ(std::string("hi"), JsonTraits<SC_JSON_TYPE>::GetString(*node));
+}

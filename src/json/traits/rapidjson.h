@@ -186,26 +186,88 @@ struct JsonOtherTraits<rapidjson::Value> {
 
 template <>
 struct JsonWriteTraits<rapidjson::Value> {
+  using Json = rapidjson::Value;
+
   template <JsonErrorHandler ErrorHandler>
-  static rapidjson::Value* AddChild(
-      JsonOwner<rapidjson::Value, ErrorHandler>& owner,
-      const rapidjson::Value& parent, std::string_view name) noexcept {
+  static Json* AddChild(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                        std::string_view name) noexcept {
+    return AddValue(owner, parent, name, [](Json& node) { node.SetObject(); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddInt(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                      std::string_view name, int value) noexcept {
+    return AddValue(owner, parent, name,
+                    [value](Json& node) { node.SetInt(value); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddUint(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                       std::string_view name, unsigned int value) noexcept {
+    return AddValue(owner, parent, name,
+                    [value](Json& node) { node.SetUint(value); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddInt64(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                        std::string_view name, std::int64_t value) noexcept {
+    return AddValue(owner, parent, name,
+                    [value](Json& node) { node.SetInt64(value); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddUint64(JsonOwner<Json, ErrorHandler>& owner,
+                         const Json& parent, std::string_view name,
+                         std::uint64_t value) noexcept {
+    return AddValue(owner, parent, name,
+                    [value](Json& node) { node.SetUint64(value); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddDouble(JsonOwner<Json, ErrorHandler>& owner,
+                         const Json& parent, std::string_view name,
+                         double value) noexcept {
+    return AddValue(owner, parent, name,
+                    [value](Json& node) { node.SetDouble(value); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddBool(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                       std::string_view name, bool value) noexcept {
+    return AddValue(owner, parent, name,
+                    [value](Json& node) { node.SetBool(value); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddNull(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                       std::string_view name) noexcept {
+    return AddValue(owner, parent, name, [](Json& node) { node.SetNull(); });
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddString(JsonOwner<Json, ErrorHandler>& owner,
+                         const Json& parent, std::string_view name,
+                         std::string_view value) noexcept {
+    auto& allocator = owner.GetAllocator();
+    return AddValue(owner, parent, name, [&allocator, value](Json& node) {
+      node.SetString(value.data(),
+                     static_cast<rapidjson::SizeType>(value.size()), allocator);
+    });
+  }
+
+ private:
+  template <JsonErrorHandler ErrorHandler, typename Setter>
+  static Json* AddValue(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                        std::string_view name, Setter setter) noexcept {
     try {
       if (!parent.IsObject()) {
         return nullptr;
       }
-      auto& node = const_cast<rapidjson::Value&>(parent);
+      auto& node = const_cast<Json&>(parent);
       const rapidjson::Value key(rapidjson::StringRef(
           name.data(), static_cast<rapidjson::SizeType>(name.size())));
       if (auto it = node.FindMember(key); it != node.MemberEnd()) {
+        setter(it->value);
         return &it->value;
       }
-      auto& allocator = owner.GetAllocator();
-      rapidjson::Value child(rapidjson::kObjectType);
+      Json child;
+      setter(child);
       node.AddMember(
           rapidjson::StringRef(name.data(),
                                static_cast<rapidjson::SizeType>(name.size())),
-          child, allocator);
+          child, owner.GetAllocator());
       auto it = node.FindMember(key);
       return it == node.MemberEnd() ? nullptr : &it->value;
     } catch (...) {

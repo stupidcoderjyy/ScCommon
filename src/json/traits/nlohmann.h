@@ -152,12 +152,13 @@ struct JsonOtherTraits<nlohmann::json> {
 
 template <>
 struct JsonWriteTraits<nlohmann::json> {
+  using Json = nlohmann::json;
+
   template <JsonErrorHandler ErrorHandler>
-  static nlohmann::json* AddChild(JsonOwner<nlohmann::json, ErrorHandler>&,
-                                  const nlohmann::json& parent,
-                                  std::string_view name) noexcept {
+  static Json* AddChild(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                        std::string_view name) noexcept {
     try {
-      auto& node = const_cast<nlohmann::json&>(parent);
+      auto& node = const_cast<Json&>(parent);
       if (!node.is_object()) {
         return nullptr;
       }
@@ -165,7 +166,65 @@ struct JsonWriteTraits<nlohmann::json> {
       if (auto it = node.find(key); it != node.end()) {
         return &*it;
       }
-      node[key] = nlohmann::json::object();
+      node[key] = Json::object();
+      return &node[key];
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddInt(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                      std::string_view name, int value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddUint(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                       std::string_view name, unsigned int value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddInt64(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                        std::string_view name, std::int64_t value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddUint64(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                         std::string_view name, std::uint64_t value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddDouble(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                         std::string_view name, double value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddBool(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                       std::string_view name, bool value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddNull(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                       std::string_view name) noexcept {
+    return SetAt(parent, name, nullptr);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddString(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+                         std::string_view name, std::string_view value) noexcept {
+    return SetAt(parent, name, std::string(value));
+  }
+
+ private:
+  template <typename T>
+  static Json* SetAt(const Json& parent, std::string_view name,
+                     T&& value) noexcept {
+    try {
+      auto& node = const_cast<Json&>(parent);
+      if (!node.is_object()) {
+        return nullptr;
+      }
+      const std::string key(name);
+      node[key] = std::forward<T>(value);
       return &node[key];
     } catch (...) {
       return nullptr;

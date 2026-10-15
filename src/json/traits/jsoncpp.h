@@ -127,18 +127,91 @@ struct JsonOtherTraits<Json::Value> {
 template <>
 struct JsonWriteTraits<Json::Value> {
   template <JsonErrorHandler ErrorHandler>
-  static Json::Value* AddChild(JsonOwner<Json::Value, ErrorHandler>&,
-                               const Json::Value& parent,
-                               std::string_view name) noexcept {
+  static ::Json::Value* AddChild(JsonOwner<::Json::Value, ErrorHandler>&,
+                                 const ::Json::Value& parent,
+                                 std::string_view name) noexcept {
     try {
-      auto& node = const_cast<Json::Value&>(parent);
+      auto& node = const_cast<::Json::Value&>(parent);
       if (!node.isObject()) {
         return nullptr;
       }
       const std::string key(name);
-      if (!node.isMember(key)) {
-        node[key] = Json::Value(Json::objectValue);
+      if (node.isMember(key)) {
+        return &node[key];
       }
+      node[key] = ::Json::Value(::Json::objectValue);
+      return &node[key];
+    } catch (...) {
+      return nullptr;
+    }
+  }
+
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddInt(JsonOwner<::Json::Value, ErrorHandler>&,
+                               const ::Json::Value& parent,
+                               std::string_view name, int value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddUint(JsonOwner<::Json::Value, ErrorHandler>&,
+                                const ::Json::Value& parent,
+                                std::string_view name,
+                                unsigned int value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddInt64(JsonOwner<::Json::Value, ErrorHandler>&,
+                                 const ::Json::Value& parent,
+                                 std::string_view name,
+                                 std::int64_t value) noexcept {
+    return SetAt(parent, name,
+                 ::Json::Value(static_cast<::Json::Int64>(value)));
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddUint64(JsonOwner<::Json::Value, ErrorHandler>&,
+                                  const ::Json::Value& parent,
+                                  std::string_view name,
+                                  std::uint64_t value) noexcept {
+    return SetAt(parent, name,
+                 ::Json::Value(static_cast<::Json::UInt64>(value)));
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddDouble(JsonOwner<::Json::Value, ErrorHandler>&,
+                                  const ::Json::Value& parent,
+                                  std::string_view name, double value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddBool(JsonOwner<::Json::Value, ErrorHandler>&,
+                                const ::Json::Value& parent,
+                                std::string_view name, bool value) noexcept {
+    return SetAt(parent, name, value);
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddNull(JsonOwner<::Json::Value, ErrorHandler>&,
+                                const ::Json::Value& parent,
+                                std::string_view name) noexcept {
+    return SetAt(parent, name, ::Json::Value(::Json::nullValue));
+  }
+  template <JsonErrorHandler ErrorHandler>
+  static ::Json::Value* AddString(JsonOwner<::Json::Value, ErrorHandler>&,
+                                  const ::Json::Value& parent,
+                                  std::string_view name,
+                                  std::string_view value) noexcept {
+    return SetAt(parent, name, std::string(value));
+  }
+
+ private:
+  template <typename T>
+  static ::Json::Value* SetAt(const ::Json::Value& parent,
+                              std::string_view name, T&& value) noexcept {
+    try {
+      auto& node = const_cast<::Json::Value&>(parent);
+      if (!node.isObject()) {
+        return nullptr;
+      }
+      const std::string key(name);
+      node[key] = std::forward<T>(value);
       return &node[key];
     } catch (...) {
       return nullptr;

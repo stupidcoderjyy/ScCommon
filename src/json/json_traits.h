@@ -67,6 +67,41 @@ struct JsonWriteTraits {
   template <JsonErrorHandler ErrorHandler>
   static Json* AddChild(JsonOwner<Json, ErrorHandler>& owner,
                         const Json& parent, std::string_view name) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddInt(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                      std::string_view name, int value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddUint(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                       std::string_view name, unsigned int value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddInt64(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                        std::string_view name, std::int64_t value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddUint64(JsonOwner<Json, ErrorHandler>& owner,
+                         const Json& parent, std::string_view name,
+                         std::uint64_t value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddDouble(JsonOwner<Json, ErrorHandler>& owner,
+                         const Json& parent, std::string_view name,
+                         double value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddBool(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                       std::string_view name, bool value) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddNull(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                       std::string_view name) noexcept;
+
+  template <JsonErrorHandler ErrorHandler>
+  static Json* AddString(JsonOwner<Json, ErrorHandler>& owner,
+                         const Json& parent, std::string_view name,
+                        std::string_view value) noexcept;
 };
 
 template <typename Json>
