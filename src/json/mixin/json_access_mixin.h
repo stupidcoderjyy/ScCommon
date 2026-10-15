@@ -10,131 +10,116 @@
 #include <type_traits>
 #include <utility>
 
-#include "../json_path.h"
 #include "../../reflect/get_fields.h"
+#include "../json_path.h"
 #include "../util/json_detail.h"
 #include "../util/json_error.h"
 #include "../util/json_read_write.h"
 
 namespace sc::json {
 
-template <typename Derived, typename Json>
+template <typename Derived, typename Json,
+          JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonAccessMixin {
  public:
-  // 所有接口的模板参数都是 <类型, 策略 = Optional>：
-  // 第一个是「被提取/返回的类型」，第二个才是策略，因此 Get<bool>(path) 可用。
-
-  // ---------------- 写入形式：Put(path, out[, default]) ----------------
-  // T 由 out 推导，也可显式写 <类型, 策略>；default_val 是非推导语境，
-  // 因此默认值类型可与 out 不同（如 out=int64_t、默认值写 0）。
-  template <typename T, typename ExistencePolicy = Optional, std::size_t N>
+  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
   Derived& Put(const Parts<N>& path, T& out,
-               std::type_identity_t<T> default_val = {}) {
-    static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                      std::is_same_v<ExistencePolicy, Optional>,
-                  "JsonAccessMixin: unsupported ExistencePolicy");
-    return FillValue<ExistencePolicy, Extractor<Json, T>>(
-        path, out, std::move(default_val));
+               std::type_identity_t<T> default_val = {},
+               E& handler = GetDefaultErrorHandler<E>()) {
+    return FillValue<Policy, Extractor<Json, T>>(
+        path, out, std::move(default_val), handler);
   }
 
-  // ---------------- 返回值形式：Get(path[, default]) ----------------
-  // 返回类型无法推导，T 必须显式；失败时回落 T{}（Optional）或交给 handler
-  template <typename T, typename ExistencePolicy = Optional, std::size_t N>
-  [[nodiscard]] T Get(const Parts<N>& path) {
+  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
+  [[nodiscard]] T Get(const Parts<N>& path,
+                      E& handler = GetDefaultErrorHandler<E>()) {
     T out{};
-    Put<T, ExistencePolicy>(path, out);
+    Put<T, Policy>(path, out, T{}, handler);
     return out;
   }
 
-  // 带默认值：T 可显式，也可由默认值推导（Get(path, kDefault)）
-  template <typename T, typename ExistencePolicy = Optional, std::size_t N>
-  [[nodiscard]] T Get(const Parts<N>& path, T default_val) {
+  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
+  [[nodiscard]] T Get(const Parts<N>& path, T default_val,
+                      E& handler = GetDefaultErrorHandler<E>()) {
     T out{};
-    Put<T, ExistencePolicy>(path, out, std::move(default_val));
+    Put<T, Policy>(path, out, std::move(default_val), handler);
     return out;
   }
 
-  // ---------------- 数组：写入 PutArray / 返回 GetArray ----------------
-  // 写入到列表容器；元素类型 T 由容器推导。
-  // 策略默认与显式写成两个重载：策略没有默认值就不存在「默认实参夹在中间、
-  // 后面还要推导模板模板参数」的组合（MSVC 会在这种形态上报 C2672）。
   template <typename T, template <typename...> class List, std::size_t N>
-  Derived& PutArray(const Parts<N>& path, List<T>& arr) {
-    return FillArray<Optional, Extractor<Json, T>>(path, arr);
+  Derived& PutArray(const Parts<N>& path, List<T>& arr,
+                    E& handler = GetDefaultErrorHandler<E>()) {
+    return FillArray<Optional, Extractor<Json, T>>(path, arr, handler);
   }
 
-  template <typename T, typename ExistencePolicy,
-            template <typename...> class List, std::size_t N>
-  Derived& PutArray(const Parts<N>& path, List<T>& arr) {
-    static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                      std::is_same_v<ExistencePolicy, Optional>,
-                  "JsonAccessMixin: unsupported ExistencePolicy");
-    return FillArray<ExistencePolicy, Extractor<Json, T>>(path, arr);
+  template <typename T, AccessPolicy Policy, template <typename...> class List,
+            std::size_t N>
+  Derived& PutArray(const Parts<N>& path, List<T>& arr,
+                    E& handler = GetDefaultErrorHandler<E>()) {
+    return FillArray<Policy, Extractor<Json, T>>(path, arr, handler);
   }
 
-  // 返回容器：R 是完整容器类型，如 std::vector<std::int64_t>
-  template <typename R, typename ExistencePolicy = Optional, std::size_t N>
-  [[nodiscard]] R GetArray(const Parts<N>& path) {
+  template <typename R, AccessPolicy Policy = Optional, std::size_t N>
+  [[nodiscard]] R GetArray(const Parts<N>& path,
+                           E& handler = GetDefaultErrorHandler<E>()) {
     static_assert(
         requires { typename R::value_type; },
         "JsonAccessMixin: GetArray<R> 的 R 必须是容器类型，"
         "如 std::vector<std::int64_t>");
     R out{};
-    FillArray<ExistencePolicy, Extractor<Json, typename R::value_type>>(path,
-                                                                        out);
+    FillArray<Policy, Extractor<Json, typename R::value_type>>(path, out,
+                                                               handler);
     return out;
   }
 
-  // ---------------- 对象：写入 PutMap / 返回 GetMap ----------------
-  // 写入到 Map<std::string, T>；值类型 T 由 map 推导（同 PutArray 拆两个重载）
   template <typename T, template <typename...> class Map, std::size_t N>
-  Derived& PutMap(const Parts<N>& path, Map<std::string, T>& map) {
-    return FillMap<Optional, Extractor<Json, T>>(path, map);
+  Derived& PutMap(const Parts<N>& path, Map<std::string, T>& map,
+                  E& handler = GetDefaultErrorHandler<E>()) {
+    return FillMap<Optional, Extractor<Json, T>>(path, map, handler);
   }
 
-  template <typename T, typename ExistencePolicy,
-            template <typename...> class Map, std::size_t N>
-  Derived& PutMap(const Parts<N>& path, Map<std::string, T>& map) {
-    static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                      std::is_same_v<ExistencePolicy, Optional>,
-                  "JsonAccessMixin: unsupported ExistencePolicy");
-    return FillMap<ExistencePolicy, Extractor<Json, T>>(path, map);
+  template <typename T, AccessPolicy Policy, template <typename...> class Map,
+            std::size_t N>
+  Derived& PutMap(const Parts<N>& path, Map<std::string, T>& map,
+                  E& handler = GetDefaultErrorHandler<E>()) {
+    return FillMap<Policy, Extractor<Json, T>>(path, map, handler);
   }
 
-  // 返回 Map：R 是完整容器类型，如 std::map<std::string, std::int64_t>
-  template <typename R, typename ExistencePolicy = Optional, std::size_t N>
-  [[nodiscard]] R GetMap(const Parts<N>& path) {
+  template <typename R, AccessPolicy Policy = Optional, std::size_t N>
+  [[nodiscard]] R GetMap(const Parts<N>& path,
+                         E& handler = GetDefaultErrorHandler<E>()) {
     static_assert(
         requires { typename R::mapped_type; },
         "JsonAccessMixin: GetMap<R> 的 R 必须是 map 类型，"
         "如 std::map<std::string, std::int64_t>");
     R out{};
-    FillMap<ExistencePolicy, Extractor<Json, typename R::mapped_type>>(path,
-                                                                       out);
+    FillMap<Policy, Extractor<Json, typename R::mapped_type>>(path, out,
+                                                              handler);
     return out;
   }
-  template <typename T, typename ExistencePolicy = Optional, std::size_t N>
-  void PutType(const Parts<N>& path, T& t) {
-    const auto view = self().template View<ExistencePolicy>(path);
+  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
+  void PutType(const Parts<N>& path, T& t,
+               E& handler = GetDefaultErrorHandler<E>()) {
+    const auto view = self().template View<Policy>(path, handler);
     if (!view.valid()) {
       return;
     }
-    LoadType<ExistencePolicy>(*view.node(), t);
+    LoadType<Policy>(*view.node(), t, handler);
   }
 
-  template <typename T, typename ExistencePolicy = Optional, std::size_t N>
-  [[nodiscard]] T GetType(const Parts<N>& path) {
+  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
+  [[nodiscard]] T GetType(const Parts<N>& path,
+                          E& handler = GetDefaultErrorHandler<E>()) {
     T out{};
-    PutType<T, ExistencePolicy>(path, out);
+    PutType<T, Policy>(path, out, handler);
     return out;
   }
 
  private:
-  // 获取子类引用
   Derived& self() noexcept { return static_cast<Derived&>(*this); }
 
-  template <typename ExistencePolicy, typename Ext, std::size_t N, typename T>
-  Derived& FillValue(const Parts<N>& path, T& out, T default_val) {
+  template <AccessPolicy Policy, typename Ext, std::size_t N, typename T>
+  Derived& FillValue(const Parts<N>& path, T& out, T default_val, E& handler) {
     static_assert(
         !std::is_same_v<T, Required> && !std::is_same_v<T, Optional>,
         "JsonAccessMixin: 第一个模板参数是数据类型，策略在第二个，"
@@ -149,22 +134,21 @@ class JsonAccessMixin {
       target = base;
     } else if constexpr (N == 1) {
       target = JsonTraits<Json>::TryGetChild(*base, path[0]);
-      if constexpr (std::is_same_v<ExistencePolicy, Required>) {
+      if constexpr (std::is_same_v<Policy, Required>) {
         if (target == nullptr) {
-          self().error_handler().OnPathResolveError(detail::PathString(path));
+          handler.OnPathResolveError(detail::PathString(path));
         }
       }
     } else {
-      target = detail::ResolveWithPolicy<Json, N, ExistencePolicy>(
-          base, path, self().error_handler());
+      target = detail::ResolveWithPolicy<Json, N, Policy>(base, path, handler);
     }
     if (target == nullptr) {
       out = std::move(default_val);
       return self();
     }
     if (!Ext::Extract(*target, out)) {
-      if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-        self().error_handler().OnTypeMismatch(detail::PathString(path));
+      if constexpr (std::is_same_v<Policy, Required>) {
+        handler.OnTypeMismatch(detail::PathString(path));
       }
       out = std::move(default_val);
     }
@@ -173,12 +157,12 @@ class JsonAccessMixin {
 
   // 容器以「完整类型」作参数，内部元素类型取自 Container::value_type，
   // 不再需要推导模板模板参数（MSVC 更稳）。
-  template <typename ExistencePolicy, typename Ext, typename Container,
+  template <AccessPolicy Policy, typename Ext, typename Container,
             std::size_t N>
-  Derived& FillArray(const Parts<N>& path, Container& arr) {
+  Derived& FillArray(const Parts<N>& path, Container& arr, E& handler) {
     using T = Container::value_type;
     arr.clear();
-    const auto range = self().template ViewArray<ExistencePolicy>(path);
+    const auto range = self().template ViewArray<Policy>(path, handler);
     const Json* array = range.node();
     if (array == nullptr) {
       return self();
@@ -195,20 +179,20 @@ class JsonAccessMixin {
         element_path += '[';
         detail::AppendNumber(element_path, i);
         element_path += ']';
-        self().error_handler().OnTypeMismatch(element_path);
-        return self();  // 若 ErrorHandler 返回，则中止填充
+        handler.OnTypeMismatch(element_path);
+        return self();  // 若 E 返回，则中止填充
       }
       arr.push_back(std::move(value));
     }
     return self();
   }
 
-  template <typename ExistencePolicy, typename Ext, typename Container,
+  template <AccessPolicy Policy, typename Ext, typename Container,
             std::size_t N>
-  Derived& FillMap(const Parts<N>& path, Container& map) {
+  Derived& FillMap(const Parts<N>& path, Container& map, E& handler) {
     using T = Container::mapped_type;
     map.clear();
-    const auto range = self().template ViewObject<ExistencePolicy>(path);
+    const auto range = self().template ViewObject<Policy>(path, handler);
     const Json* object = range.node();
     if (object == nullptr) {
       return self();
@@ -223,22 +207,21 @@ class JsonAccessMixin {
           member_path += '.';
         }
         member_path += member.first;
-        self().error_handler().OnTypeMismatch(member_path);
-        return self();  // 若 ErrorHandler 返回，则中止填充
+        handler.OnTypeMismatch(member_path);
+        return self();  // 若 E 返回，则中止填充
       }
       map.emplace(std::string(member.first), std::move(value));
     }
     return self();
   }
 
-  template <typename ExistencePolicy, typename T>
-  bool LoadType(const Json& node, T& out) {
+  template <AccessPolicy Policy, typename T>
+  bool LoadType(const Json& node, T& out, E& handler) {
     if constexpr (reflect::is_registered_v<T>) {
       bool ok = true;
       std::apply(
           [&](const auto&... field) {
-            ((ok = ok && LoadField<ExistencePolicy>(node, field, out)),
-             ...);
+            ((ok = ok && LoadField<Policy>(node, field, out, handler)), ...);
           },
           reflect::Descriptor<T>::fields());
       return ok;
@@ -254,8 +237,8 @@ class JsonAccessMixin {
       for (std::size_t i = 0; i < size; ++i) {
         using Element = T::value_type;
         Element element{};
-        if (!LoadType<ExistencePolicy>(
-                JsonTraits<Json>::GetArrayElement(node, i), element)) {
+        if (!LoadType<Policy>(JsonTraits<Json>::GetArrayElement(node, i),
+                              element, handler)) {
           return false;
         }
         out.push_back(std::move(element));
@@ -271,7 +254,7 @@ class JsonAccessMixin {
         const auto member = *it;
         using Mapped = T::mapped_type;
         Mapped value{};
-        if (!LoadType<ExistencePolicy>(*member.second, value)) {
+        if (!LoadType<Policy>(*member.second, value, handler)) {
           return false;
         }
         out.emplace(std::string(member.first), std::move(value));
@@ -282,17 +265,17 @@ class JsonAccessMixin {
     }
   }
 
-  template <typename ExistencePolicy, typename FieldT, typename T>
-  bool LoadField(const Json& node, const FieldT& field, T& out) {
+  template <AccessPolicy Policy, typename FieldT, typename T>
+  bool LoadField(const Json& node, const FieldT& field, T& out, E& handler) {
     const Json* child = JsonTraits<Json>::TryGetChild(node, field.name);
     if (!child) {
-      if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-        self().error_handler().OnPathResolveError(field.name);
+      if constexpr (std::is_same_v<Policy, Required>) {
+        handler.OnPathResolveError(field.name);
       }
       return false;
     }
-    if (!LoadType<ExistencePolicy>(*child, out.*field.member)) {
-      self().error_handler().OnTypeMismatch(field.name);
+    if (!LoadType<Policy>(*child, out.*field.member, handler)) {
+      handler.OnTypeMismatch(field.name);
       return false;
     }
     return true;

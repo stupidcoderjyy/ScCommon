@@ -60,9 +60,8 @@ class JsonTraitsMixin {
   [[nodiscard]] std::int64_t GetInt64() const {
     auto* n = node();
     std::int64_t out{};
-    return n != nullptr && JsonTraits<Json>::GetInt64(*n, out)
-               ? out
-               : std::int64_t{};
+    return n != nullptr && JsonTraits<Json>::GetInt64(*n, out) ? out
+                                                               : std::int64_t{};
   }
   [[nodiscard]] std::uint64_t GetUint64() const {
     auto* n = node();

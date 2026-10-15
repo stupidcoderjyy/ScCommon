@@ -74,7 +74,6 @@ template <>
 struct JsonAccessTraits<nlohmann::json> {
   using Json = nlohmann::json;
 
-
   static bool GetInt(const Json& json, int& out) {
     if (json.is_number_unsigned()) {
       const std::uint64_t v = json.get<std::uint64_t>();
@@ -231,8 +230,8 @@ template <>
 struct JsonWriteTraits<nlohmann::json> {
   using Json = nlohmann::json;
 
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddChild(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddChild(JsonOwner<Json, E>&, const Json& parent,
                         std::string_view name) noexcept {
     try {
       auto& node = const_cast<Json&>(parent);
@@ -250,60 +249,59 @@ struct JsonWriteTraits<nlohmann::json> {
     }
   }
 
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddInt(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddInt(JsonOwner<Json, E>&, const Json& parent,
                       std::string_view name, int value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddUint(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddUint(JsonOwner<Json, E>&, const Json& parent,
                        std::string_view name, unsigned int value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddInt64(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddInt64(JsonOwner<Json, E>&, const Json& parent,
                         std::string_view name, std::int64_t value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddUint64(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddUint64(JsonOwner<Json, E>&, const Json& parent,
                          std::string_view name, std::uint64_t value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddDouble(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddDouble(JsonOwner<Json, E>&, const Json& parent,
                          std::string_view name, double value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddBool(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddBool(JsonOwner<Json, E>&, const Json& parent,
                        std::string_view name, bool value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddNull(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddNull(JsonOwner<Json, E>&, const Json& parent,
                        std::string_view name) noexcept {
     return SetAt(parent, name, nullptr);
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddString(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddString(JsonOwner<Json, E>&, const Json& parent,
                          std::string_view name,
                          std::string_view value) noexcept {
     return SetAt(parent, name, std::string(value));
   }
 
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddList(JsonOwner<Json, ErrorHandler>&, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddList(JsonOwner<Json, E>&, const Json& parent,
                        std::string_view name) noexcept {
     return SetAt(parent, name, Json::array());
   }
 
-  template <JsonErrorHandler ErrorHandler, typename T>
-  static Json* Append(JsonOwner<Json, ErrorHandler>&, Json& array,
+  template <JsonErrorHandler E, typename T>
+  static Json* Append(JsonOwner<Json, E>&, Json& array,
                       const T& value) noexcept {
     try {
-      if constexpr (std::is_same_v<T, int> ||
-                    std::is_same_v<T, unsigned int> ||
+      if constexpr (std::is_same_v<T, int> || std::is_same_v<T, unsigned int> ||
                     std::is_same_v<T, std::int64_t> ||
                     std::is_same_v<T, std::uint64_t> ||
                     std::is_same_v<T, double> || std::is_same_v<T, bool>) {
@@ -317,9 +315,8 @@ struct JsonWriteTraits<nlohmann::json> {
     }
   }
 
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AppendObject(JsonOwner<Json, ErrorHandler>&,
-                            Json& array) noexcept {
+  template <JsonErrorHandler E>
+  static Json* AppendObject(JsonOwner<Json, E>&, Json& array) noexcept {
     try {
       array.push_back(Json::object());
       return &array.back();
@@ -349,33 +346,30 @@ struct JsonWriteTraits<nlohmann::json> {
   }
 };
 
-template <JsonErrorHandler ErrorHandler>
-struct JsonParseTraits<nlohmann::json, ErrorHandler> {
-  static void Parse(std::string_view text, nlohmann::json& out,
-                    ErrorHandler& handler) {
+template <JsonErrorHandler E>
+struct JsonParseTraits<nlohmann::json, E> {
+  static void Parse(std::string_view text, nlohmann::json& out, E& handler) {
     try {
       out = nlohmann::json::parse(text.data(), text.data() + text.size());
     } catch (std::exception& e) {
-      handler.OnJsonParseError(text, e);
+      handler.OnJsonParseError(e.what());
       throw;
     }
   }
 
-  static void Parse(std::istream& is, nlohmann::json& out,
-                    ErrorHandler& handler) {
+  static void Parse(std::istream& is, nlohmann::json& out, E& handler) {
     try {
       out = nlohmann::json::parse(is);
     } catch (std::exception& e) {
-      handler.OnJsonParseError(std::string_view{}, e);
+      handler.OnJsonParseError(e.what());
       throw;
     }
   }
 };
 
-template <JsonErrorHandler ErrorHandler>
-struct JsonOwner<nlohmann::json, ErrorHandler>
-    : JsonOwnerStorage<nlohmann::json, ErrorHandler> {
-  using JsonOwnerStorage<nlohmann::json, ErrorHandler>::JsonOwnerStorage;
+template <JsonErrorHandler E>
+struct JsonOwner<nlohmann::json, E> : JsonOwnerStorage<nlohmann::json, E> {
+  using JsonOwnerStorage<nlohmann::json, E>::JsonOwnerStorage;
 };
 
 }  // namespace sc::json

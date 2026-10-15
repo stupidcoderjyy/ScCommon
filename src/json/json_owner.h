@@ -10,39 +10,30 @@
 
 namespace sc::json {
 
-template <typename Json,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 struct JsonOwnerStorage {
   JsonOwnerStorage() = default;
-  explicit JsonOwnerStorage(OwnedJsonT<Json>&& json,
-                            ErrorHandler handler = ErrorHandler{})
-      : json_(std::move(json)),
-        err_handler_(std::move(handler)),
-        valid_(true) {}
+  explicit JsonOwnerStorage(OwnedJsonT<Json>&& json)
+      : json_(std::move(json)), valid_(true) {}
   explicit JsonOwnerStorage(std::string_view text,
-                            ErrorHandler handler = ErrorHandler{}) {
-    err_handler_ = std::move(handler);
-    JsonParseTraits<Json, ErrorHandler>::Parse(text, json_, err_handler_);
+                            E& handler = GetDefaultErrorHandler<E>()) {
+    JsonParseTraits<Json, E>::Parse(text, json_, handler);
     valid_ = true;
   }
   explicit JsonOwnerStorage(std::istream& is,
-                            ErrorHandler handler = ErrorHandler{}) {
-    err_handler_ = std::move(handler);
-    JsonParseTraits<Json, ErrorHandler>::Parse(is, json_, err_handler_);
+                            E& handler = GetDefaultErrorHandler<E>()) {
+    JsonParseTraits<Json, E>::Parse(is, json_, handler);
     valid_ = true;
   }
   JsonOwnerStorage(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage& operator=(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage(JsonOwnerStorage&& o) noexcept
-      : json_(std::move(o.json_)),
-        err_handler_(std::move(o.err_handler_)),
-        valid_(o.valid_) {
+      : json_(std::move(o.json_)), valid_(o.valid_) {
     o.valid_ = false;
   }
   JsonOwnerStorage& operator=(JsonOwnerStorage&& o) noexcept {
     if (&o != this) {
       json_ = std::move(o.json_);
-      err_handler_ = std::move(o.err_handler_);
       valid_ = o.valid_;
       o.valid_ = false;
     }
@@ -62,27 +53,21 @@ struct JsonOwnerStorage {
   [[nodiscard]] bool valid() const noexcept { return valid_; }
   [[nodiscard]] Json& json() { return json_; }
   [[nodiscard]] const Json& json() const { return json_; }
-  [[nodiscard]] ErrorHandler& err_handler() { return err_handler_; }
-  [[nodiscard]] const ErrorHandler& err_handler() const { return err_handler_; }
 
   explicit operator bool() const { return valid_; }
 
   OwnedJsonT<Json> json_;
-  ErrorHandler err_handler_;
   bool valid_ = false;
 };
 
 // 主模板
-template <typename Json,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
-struct JsonOwner : JsonOwnerStorage<Json, ErrorHandler> {
-  using JsonOwnerStorage<Json, ErrorHandler>::JsonOwnerStorage;
+template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
+struct JsonOwner : JsonOwnerStorage<Json, E> {
+  using JsonOwnerStorage<Json, E>::JsonOwnerStorage;
 };
 
-template <typename Json,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
-std::ostream& operator<<(std::ostream& os,
-                         const JsonOwner<Json, ErrorHandler>& owner) {
+template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
+std::ostream& operator<<(std::ostream& os, const JsonOwner<Json, E>& owner) {
   owner.ToStream(os);
   return os;
 }

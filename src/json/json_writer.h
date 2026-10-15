@@ -13,15 +13,14 @@
 
 namespace sc::json {
 
-template <typename Json,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
-class JsonWriter
-    : public JsonWriteMixin<JsonWriter<Json, ErrorHandler>, Json, ErrorHandler> {
+template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
+class JsonWriter : public JsonWriteMixin<JsonWriter<Json, E>, Json, E> {
  public:
   using Self = JsonWriter;
-  using OwnerType = JsonOwner<Json, ErrorHandler>;
+  using OwnerType = JsonOwner<Json, E>;
 
-  explicit JsonWriter(OwnerType& owner) : owner_(owner.valid() ? &owner : nullptr) {}
+  explicit JsonWriter(OwnerType& owner)
+      : owner_(owner.valid() ? &owner : nullptr) {}
   JsonWriter() = delete;
 
   [[nodiscard]] const Json* node() const noexcept {
@@ -29,6 +28,7 @@ class JsonWriter
   }
 
   [[nodiscard]] OwnerType* owner() noexcept { return owner_; }
+
  private:
   OwnerType* owner_;
 };

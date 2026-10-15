@@ -57,9 +57,9 @@ std::string PathString(const Parts<N>& path) {
 // Json路径解析
 //
 template <typename Json, bool kCreateOnMissing = false,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+          JsonErrorHandler E = DefaultJsonErrorHandler>
 const Json* Step(const Json* node, std::string_view token,
-                 JsonOwner<Json, ErrorHandler>* owner = nullptr) {
+                 JsonOwner<Json, E>* owner = nullptr) {
   if (!node || token.empty()) {
     return nullptr;
   }
@@ -93,27 +93,24 @@ const Json* Step(const Json* node, std::string_view token,
 }
 
 template <typename Json, std::size_t N, bool kCreateOnMissing = false,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+          JsonErrorHandler E = DefaultJsonErrorHandler>
 Json* Resolve(const Json* cur, const Parts<N>& path,
-              JsonOwner<Json, ErrorHandler>* owner = nullptr) {
+              JsonOwner<Json, E>* owner = nullptr) {
   Json* node = const_cast<Json*>(cur);
   for (std::size_t i = 0; node != nullptr && i < path.Size(); ++i) {
     node = const_cast<Json*>(
-        Step<Json, kCreateOnMissing, ErrorHandler>(node, path[i], owner));
+        Step<Json, kCreateOnMissing, E>(node, path[i], owner));
   }
   return node;
 }
 
-template <typename Json, std::size_t N,
-          typename ExistencePolicy, JsonErrorHandler ErrorHandler, bool kCreateOnMissing = false>
-Json* ResolveWithPolicy(const Json* cur, const Parts<N>& path,
-                        ErrorHandler& handler,
-                        JsonOwner<Json, ErrorHandler>* owner = nullptr) {
+template <typename Json, std::size_t N, typename ExistencePolicy,
+          JsonErrorHandler E, bool kCreateOnMissing = false>
+Json* ResolveWithPolicy(const Json* cur, const Parts<N>& path, E& handler,
+                        JsonOwner<Json, E>* owner = nullptr) {
   constexpr auto required = std::is_same_v<ExistencePolicy, Required>;
   constexpr auto create = required && kCreateOnMissing;
-  if (auto* res =
-          detail::Resolve<Json, N, create, ErrorHandler>(cur, path, owner);
-      res) {
+  if (auto* res = detail::Resolve<Json, N, create, E>(cur, path, owner); res) {
     return res;
   }
   if constexpr (required) {

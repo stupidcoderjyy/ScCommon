@@ -41,7 +41,6 @@ consteval auto operator""_path() {
   return MakeParts<N>(view);
 }
 
-
 }  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_PATH_H

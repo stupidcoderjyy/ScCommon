@@ -11,27 +11,23 @@
 
 namespace sc::json {
 
-template <typename Json,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonArrayView {
  public:
   JsonArrayView() noexcept = default;
-  JsonArrayView(const Json& array, ErrorHandler& handler) noexcept
-      : array_(&array),
-        size_(JsonTraits<Json>::GetArraySize(array)),
-        handler_(&handler) {}
+  explicit JsonArrayView(const Json& array) noexcept
+      : array_(&array), size_(JsonTraits<Json>::GetArraySize(array)) {}
 
   struct iterator {
     using difference_type = std::ptrdiff_t;
-    using value_type = JsonView<Json, ErrorHandler>;
+    using value_type = JsonView<Json, E>;
     using reference = value_type;
     using pointer = void;
     using iterator_concept = std::random_access_iterator_tag;
     using iterator_category = std::random_access_iterator_tag;
 
     value_type operator*() const {
-      return value_type{JsonTraits<Json>::GetArrayElement(*array_, index_),
-                        *handler_};
+      return value_type{JsonTraits<Json>::GetArrayElement(*array_, index_)};
     }
     [[nodiscard]] detail::ArrowProxy<value_type> operator->() const {
       return {operator*()};
@@ -94,11 +90,10 @@ class JsonArrayView {
 
     const Json* array_ = nullptr;
     std::size_t index_ = 0;
-    ErrorHandler* handler_ = nullptr;
   };
 
-  [[nodiscard]] iterator begin() const { return {array_, 0, handler_}; }
-  [[nodiscard]] iterator end() const { return {array_, size_, handler_}; }
+  [[nodiscard]] iterator begin() const { return {array_, 0}; }
+  [[nodiscard]] iterator end() const { return {array_, size_}; }
   [[nodiscard]] std::size_t size() const noexcept { return size_; }
   [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
   [[nodiscard]] const Json* node() const noexcept { return array_; }
@@ -106,32 +101,27 @@ class JsonArrayView {
  private:
   const Json* array_ = nullptr;
   std::size_t size_ = 0;  // 缓存，使 end()/size() 均 O(1)
-  ErrorHandler* handler_ = nullptr;
 };
 
-template <typename Json, JsonErrorHandler ErrorHandler>
-template <typename ExistencePolicy, std::size_t N>
-JsonArrayView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewArray(
-    const Parts<N>& path) const {
-  static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                    std::is_same_v<ExistencePolicy, Optional>,
-                "JsonView: unsupported ExistencePolicy");
+template <typename Json, JsonErrorHandler E>
+template <AccessPolicy Policy, std::size_t N>
+JsonArrayView<Json, E> JsonView<Json, E>::ViewArray(const Parts<N>& path,
+                                                    E& handler) const {
   if (!valid()) {
     return {};
   }
   const Json* node =
-      detail::ResolveWithPolicy<Json, N, ExistencePolicy>(json_, path,
-                                                                    handler_);
+      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, handler);
   if (!node) {
     return {};
   }
   if (!JsonTraits<Json>::IsArray(*node)) {
-    if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-      handler_.OnTypeMismatch(detail::PathString(path));
+    if constexpr (std::is_same_v<Policy, Required>) {
+      handler.OnTypeMismatch(detail::PathString(path));
     }
     return {};
   }
-  return {*node, handler_};
+  return JsonArrayView<Json, E>(*node);
 }
 
 }  // namespace sc::json

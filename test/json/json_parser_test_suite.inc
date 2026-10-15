@@ -48,9 +48,8 @@ struct SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
   static void OnTypeMismatch(std::string_view path) {
     mismatches.emplace_back(path);
   }
-  static void OnJsonParseError(std::string_view json, std::exception& e) {
-    (void)json;
-    parse_errors.emplace_back(e.what());
+  static void OnJsonParseError(std::string_view reason) {
+    parse_errors.emplace_back(reason);
   }
 };
 
@@ -85,9 +84,9 @@ struct SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
     throw SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(
         request_id_, std::string(path));
   }
-  void OnJsonParseError(std::string_view, std::exception& e) const {
+  void OnJsonParseError(std::string_view reason) const {
     throw SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(
-        request_id_, e.what());
+        request_id_, std::string(reason));
   }
 
  private:
@@ -220,9 +219,9 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStdStringUsesGivenHandler) {
   using Handler = SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME);
 
   const std::string bad = "{oops";
+  Handler handler("req-003");
   try {
-    JsonOwner<SC_JSON_TYPE, Handler> owner(std::string_view(bad),
-                                           Handler("req-003"));
+    JsonOwner<SC_JSON_TYPE, Handler> owner(std::string_view(bad), handler);
     FAIL() << "expected ContextException";
   } catch (const Exception& e) {
     EXPECT_EQ(std::string("req-003"), e.RequestId());
@@ -290,7 +289,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromInvalidStreamCallsHandler) {
   // 与文本构造一致：处理器被调用是核心约定；处理器吞掉异常后各库抛出的具体
   // 异常类型不完全一致，所以这里只要求抛出 std::exception。
   std::istringstream input("{oops");
-  EXPECT_THROW((JsonOwner<SC_JSON_TYPE, ErrorHandler>(input, ErrorHandler{})),
+  ErrorHandler handler;
+  EXPECT_THROW((JsonOwner<SC_JSON_TYPE, ErrorHandler>(input, handler)),
                std::exception);
   EXPECT_EQ(1u, ErrorHandler::parse_errors.size());
 }
@@ -300,8 +300,9 @@ TEST(SC_JSON_TEST_SUITE_NAME, ViewFromStreamUsesGivenHandler) {
   using Handler = SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME);
 
   std::istringstream input("{oops");
+  Handler handler("req-004");
   try {
-    JsonOwner<SC_JSON_TYPE, Handler> owner(input, Handler("req-004"));
+    JsonOwner<SC_JSON_TYPE, Handler> owner(input, handler);
     FAIL() << "expected ContextException";
   } catch (const Exception& e) {
     EXPECT_EQ(std::string("req-004"), e.RequestId());
@@ -409,16 +410,16 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewRequiredReportsErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   // 路径缺失 → OnPathResolveError
-  EXPECT_TRUE(view.ViewArray<Required>("no.such"_path).empty());
+  EXPECT_TRUE(view.ViewArray<Required>("no.such"_path, handler).empty());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos,
             ErrorHandler::resolve_errors.front().find("no.such"));
 
   // 节点存在但不是数组 → OnTypeMismatch
-  EXPECT_TRUE(view.ViewArray<Required>("point"_path).empty());
+  EXPECT_TRUE(view.ViewArray<Required>("point"_path, handler).empty());
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("point"), ErrorHandler::mismatches.front());
 }
@@ -550,15 +551,15 @@ TEST(SC_JSON_TEST_SUITE_NAME, ObjectViewEmptyAndRequiredErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
-  auto empty = view.ViewObject("no.such"_path);
+  auto empty = view.ViewObject("no.such"_path, handler);
   EXPECT_EQ(empty.begin(), empty.end());
 
-  (void)view.ViewObject<Required>("no.such"_path);
+  (void)view.ViewObject<Required>("no.such"_path, handler);
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
 
-  (void)view.ViewObject<Required>("list"_path);  // 数组不是对象
+  (void)view.ViewObject<Required>("list"_path, handler);  // 数组不是对象
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("list"), ErrorHandler::mismatches.front());
 }
@@ -707,39 +708,39 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutRequiredReportsErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   int value = 0;
   // 路径缺失 → OnPathResolveError（handler 返回时写默认值）
-  view.Put<int, Required>("no.such.path"_path, value, -1);
+  view.Put<int, Required>("no.such.path"_path, value, -1, handler);
   EXPECT_EQ(-1, value);
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos,
             ErrorHandler::resolve_errors.front().find("no.such.path"));
 
   // 数组越界 → OnPathResolveError
-  view.Put<int, Required>("list[9]"_path, value, -1);
+  view.Put<int, Required>("list[9]"_path, value, -1, handler);
   EXPECT_EQ(2u, ErrorHandler::resolve_errors.size());
 
   // 类型不符 → OnTypeMismatch
-  view.Put<int, Required>("s"_path, value, -1);
+  view.Put<int, Required>("s"_path, value, -1, handler);
   EXPECT_EQ(-1, value);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("s"), ErrorHandler::mismatches.front());
 
   // int 放不下的大整数同样按类型不符处理
-  view.Put<int, Required>("big"_path, value, -1);
+  view.Put<int, Required>("big"_path, value, -1, handler);
   EXPECT_EQ(2u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("big"), ErrorHandler::mismatches.back());
 
   // 推导形式（唯一模板实参是策略）同样按 Required 上报
-  view.Put<int, Required>("no.such.again"_path, value, -1);
+  view.Put<int, Required>("no.such.again"_path, value, -1, handler);
   EXPECT_EQ(-1, value);
   EXPECT_EQ(3u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.back().find(
                                    "no.such.again"));
 
-  view.Put<int, Required>("d"_path, value, -1);  // double 不是 int
+  view.Put<int, Required>("d"_path, value, -1, handler);  // double 不是 int
   EXPECT_EQ(3u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("d"), ErrorHandler::mismatches.back());
 
@@ -827,10 +828,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayElementMismatchReportsFullPath) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   std::vector<int> arr;
-  view.PutArray<int, Required>("obj_list"_path, arr);  // 元素是对象，不是 int
+  // 元素是对象，不是 int
+  view.PutArray<int, Required>("obj_list"_path, arr, handler);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("obj_list[0]"), ErrorHandler::mismatches.front());
   EXPECT_TRUE(arr.empty());
@@ -842,10 +844,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutMapValueMismatchReportsFullPath) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   std::map<std::string, std::string> map;
-  view.PutMap<std::string, Required>("point"_path, map);  // 值是 int，不是 string
+  // 值是 int，不是 string
+  view.PutMap<std::string, Required>("point"_path, map, handler);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("point."), ErrorHandler::mismatches.front().substr(0, 6));
   EXPECT_TRUE(map.empty());
@@ -902,18 +905,18 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutNullIsTypeMismatchNotMissing) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   // Optional：null 不是 int → 写默认值，且不报错
   int optional_value = 5;
-  view.Put("nil"_path, optional_value, -1);
+  view.Put("nil"_path, optional_value, -1, handler);
   EXPECT_EQ(-1, optional_value);
   EXPECT_TRUE(ErrorHandler::resolve_errors.empty());
   EXPECT_TRUE(ErrorHandler::mismatches.empty());
 
   // null 的节点是存在的，所以 Required 下走 OnTypeMismatch 而不是 OnPathResolveError
   int required_value = 5;
-  view.Put<int, Required>("nil"_path, required_value, -1);
+  view.Put<int, Required>("nil"_path, required_value, -1, handler);
   EXPECT_EQ(-1, required_value);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("nil"), ErrorHandler::mismatches.front());
@@ -921,11 +924,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutNullIsTypeMismatchNotMissing) {
 
   // 其它类型同理：null 拿不到 string，Optional 得到默认空串
   std::string text = "x";
-  view.Put("nil"_path, text);
+  view.Put("nil"_path, text, std::string{}, handler);
   EXPECT_TRUE(text.empty());
 
   // 继续在 null 下面走路径属于「解析失败」
-  EXPECT_FALSE(view.View<Required>("nil.child"_path).valid());
+  EXPECT_FALSE(view.View<Required>("nil.child"_path, handler).valid());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_TRUE(ErrorHandler::resolve_errors.front().find("nil.child") !=
               std::string::npos);
@@ -941,16 +944,17 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalTargetTurnsNullIntoNullopt) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   // 命中 → engaged
   std::optional<int> value;
-  view.Put("a.b"_path, value);
+  view.Put("a.b"_path, value, std::nullopt, handler);
   ASSERT_TRUE(value.has_value());
   EXPECT_EQ(42, *value);
 
   // JSON null → nullopt；且 Required 下也算成功（null 是 optional 的合法取值）
-  view.Put<std::optional<int>, Required>("nil"_path, value);
+  view.Put<std::optional<int>, Required>("nil"_path, value, std::nullopt,
+                                         handler);
   EXPECT_FALSE(value.has_value());
 
   // nullopt 是「提取成功但无值」，不是错误
@@ -959,47 +963,50 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalTargetTurnsNullIntoNullopt) {
 
   // 缺失 → nullopt（Optional 下写默认值）
   std::optional missing{7};
-  view.Put("no.such"_path, missing);
+  view.Put("no.such"_path, missing, std::nullopt, handler);
   EXPECT_FALSE(missing.has_value());
 
   // 类型不符 → Optional 下同样是 nullopt
   std::optional mismatch{9};
-  view.Put("s"_path, mismatch);
+  view.Put("s"_path, mismatch, std::nullopt, handler);
   EXPECT_FALSE(mismatch.has_value());
   EXPECT_TRUE(ErrorHandler::resolve_errors.empty());
   EXPECT_TRUE(ErrorHandler::mismatches.empty());
 
   // 显式提取器形式同样支持可空目标
   std::optional explicit_form{3};
-  view.Put<std::optional<int>, Required>("nil"_path, explicit_form);
+  view.Put<std::optional<int>, Required>("nil"_path, explicit_form,
+                                         std::nullopt, handler);
   EXPECT_FALSE(explicit_form.has_value());
   EXPECT_TRUE(ErrorHandler::mismatches.empty());
 
   // 其它类型同样可空
   std::optional<std::string> text{"x"};
-  view.Put("s"_path, text);
+  view.Put("s"_path, text, std::nullopt, handler);
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(std::string("hello"), *text);
-  view.Put<std::optional<std::string>, Required>("nil"_path, text);
+  view.Put<std::optional<std::string>, Required>("nil"_path, text,
+                                                 std::nullopt, handler);
   EXPECT_FALSE(text.has_value());
 
   std::optional<bool> flag;
-  view.Put("flag"_path, flag);
+  view.Put("flag"_path, flag, std::nullopt, handler);
   ASSERT_TRUE(flag.has_value());
   EXPECT_TRUE(*flag);
-  view.Put("nil"_path, flag);
+  view.Put("nil"_path, flag, std::nullopt, handler);
   EXPECT_FALSE(flag.has_value());
 
   // Required + 类型不符仍然报 OnTypeMismatch（只有 null 被 optional 接纳）
   std::optional bad{1};
-  view.Put<std::optional<int>, Required>("s"_path, bad);
+  view.Put<std::optional<int>, Required>("s"_path, bad, std::nullopt, handler);
   EXPECT_FALSE(bad.has_value());
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("s"), ErrorHandler::mismatches.front());
 
   // nullopt 只吸收「null」，不能吸收「缺失」：Required 下路径缺失仍是路径错误
   std::optional required_missing{5};
-  view.Put<std::optional<int>, Required>("no.such.path"_path, required_missing);
+  view.Put<std::optional<int>, Required>("no.such.path"_path, required_missing,
+                                        std::nullopt, handler);
   EXPECT_FALSE(required_missing.has_value());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.front().find(
@@ -1036,11 +1043,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayOptionalElementMismatchReportsPath) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   // 元素是对象，既不是 null 也不是 int → 类型不符
   std::vector<std::optional<int>> arr;
-  view.PutArray<std::optional<int>, Required>("obj_list"_path, arr);
+  view.PutArray<std::optional<int>, Required>("obj_list"_path, arr, handler);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("obj_list[0]"), ErrorHandler::mismatches.front());
   EXPECT_TRUE(arr.empty());
@@ -1103,14 +1110,14 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetRequiredReportsErrors) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   // 路径缺失 → OnPathResolveError，返回值回落默认值
-  EXPECT_EQ(-1, (view.Get<int, Required>("no.such.path"_path, -1)));
+  EXPECT_EQ(-1, (view.Get<int, Required>("no.such.path"_path, -1, handler)));
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
 
   // 类型不符 → OnTypeMismatch
-  EXPECT_EQ(-1, (view.Get<int, Required>("s"_path, -1)));
+  EXPECT_EQ(-1, (view.Get<int, Required>("s"_path, -1, handler)));
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("s"), ErrorHandler::mismatches.front());
 
@@ -1408,17 +1415,17 @@ TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathInvalidReportsResolveError) {
   ErrorHandler::resolve_errors.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
   // 编译期字面量会直接编译失败；运行期路径改由 OnPathResolveError 报告
   const auto empty_segment = Parts{"a", ""};
-  EXPECT_FALSE(view.View<Required>(empty_segment).valid());
+  EXPECT_FALSE(view.View<Required>(empty_segment, handler).valid());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos,
             ErrorHandler::resolve_errors.front().find("a."));
 
   const auto unclosed = Parts{"a", "[1"};
-  EXPECT_FALSE(view.View<Required>(unclosed).valid());
+  EXPECT_FALSE(view.View<Required>(unclosed, handler).valid());
   EXPECT_EQ(2u, ErrorHandler::resolve_errors.size());
 
   // 默认 handler 下同样报错（抛异常）
@@ -1433,11 +1440,12 @@ TEST(SC_JSON_TEST_SUITE_NAME, StatefulErrorHandlerCarriesExternalData) {
   using Handler = SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME);
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  // handler 按值持有：不需要左值，直接传临时对象也能把外部数据带进异常
-  JsonView view(json, Handler("req-001"));
+  // handler 在调用点按引用传入，外部数据随引用一起带进异常
+  JsonView<SC_JSON_TYPE, Handler> view(json);
+  Handler handler("req-001");
 
   try {
-    (void)view.View<Required>("no.such.path"_path);
+    (void)view.View<Required>("no.such.path"_path, handler);
     FAIL() << "expected ContextException";
   } catch (const Exception& e) {
     EXPECT_EQ(std::string("req-001"), e.RequestId());
@@ -1445,16 +1453,17 @@ TEST(SC_JSON_TEST_SUITE_NAME, StatefulErrorHandlerCarriesExternalData) {
   }
 
   try {
-    (void)view.ViewArray<Required>("point"_path);
+    (void)view.ViewArray<Required>("point"_path, handler);
     FAIL() << "expected ContextException";
   } catch (const Exception& e) {
     EXPECT_EQ(std::string("req-001"), e.RequestId());
     EXPECT_EQ(std::string("point"), e.Message());
   }
 
-  // 子视图持有 handler 的副本，外部数据随副本一起带过去
+  // 子视图不持有 handler，错误由调用点传入的 handler 上报
   try {
-    (void)view.View<Required>("point"_path).View<Required>("no.such"_path);
+    (void)view.View<Required>("point"_path, handler)
+        .View<Required>("no.such"_path, handler);
     FAIL() << "expected ContextException";
   } catch (const Exception& e) {
     EXPECT_EQ(std::string("req-001"), e.RequestId());
@@ -1469,27 +1478,28 @@ TEST(SC_JSON_TEST_SUITE_NAME, RecordingHandlerKeepsGoingAfterError) {
   ErrorHandler::mismatches.clear();
 
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
-  JsonView view(json, handler);
+  JsonView<SC_JSON_TYPE, ErrorHandler> view(json);
 
-  EXPECT_FALSE(view.View<Required>("no.such.path"_path).valid());
-  EXPECT_TRUE(view.ViewArray<Required>("point"_path).empty());
+  EXPECT_FALSE(view.View<Required>("no.such.path"_path, handler).valid());
+  EXPECT_TRUE(view.ViewArray<Required>("point"_path, handler).empty());
   EXPECT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_EQ(1u, ErrorHandler::mismatches.size());
 
   // handler 返回后 view 仍可继续使用
-  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+  EXPECT_EQ(42, view.View<Required>("a.b"_path, handler).GetInt());
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, AutoChainOnWrite) {
   using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+  ErrorHandler handler;
   JsonOwner<SC_JSON_TYPE, ErrorHandler> owner(
-      std::string_view(R"({"a":{"x":1}})"));
+      std::string_view(R"({"a":{"x":1}})"), handler);
   const SC_JSON_TYPE& root = owner.json();
 
   auto resolve = [&]<typename T0>(const T0& path) {
     return detail::ResolveWithPolicy<SC_JSON_TYPE, std::decay_t<T0>::kSize, Required,
                                      ErrorHandler, true>(
-        &root, path, owner.err_handler(), &owner);
+        &root, path, handler, &owner);
   };
 
   // 深度 0：空路径即根节点

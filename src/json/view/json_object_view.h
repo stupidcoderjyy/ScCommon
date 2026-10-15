@@ -15,18 +15,15 @@
 
 namespace sc::json {
 
-template <typename Json,
-          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonObjectView {
  public:
   JsonObjectView() noexcept = default;
-  JsonObjectView(const Json& obj, ErrorHandler& handler) noexcept
-      : obj_(&obj), handler_(&handler) {}
+  explicit JsonObjectView(const Json& obj) noexcept : obj_(&obj) {}
 
   struct iterator {
     using difference_type = std::ptrdiff_t;
-    using value_type =
-        std::pair<std::string_view, JsonView<Json, ErrorHandler>>;
+    using value_type = std::pair<std::string_view, JsonView<Json, E>>;
     using reference = value_type;
     using pointer = void;
     using iterator_concept = std::forward_iterator_tag;
@@ -34,8 +31,7 @@ class JsonObjectView {
 
     value_type operator*() const {
       const auto member = *it;
-      return {member.first,
-              JsonView<Json, ErrorHandler>(*member.second, *handler)};
+      return {member.first, JsonView<Json, E>(*member.second)};
     }
     [[nodiscard]] detail::ArrowProxy<value_type> operator->() const {
       return {operator*()};
@@ -53,49 +49,41 @@ class JsonObjectView {
     bool operator==(const iterator& other) const { return it == other.it; }
 
     JsonTraits<Json>::MemberIterator it{};
-    ErrorHandler* handler = nullptr;
   };
 
   iterator begin() const {
-    return obj_ ? iterator{JsonTraits<Json>::MemberBegin(*obj_), handler_}
-                : iterator{};
+    return obj_ ? iterator{JsonTraits<Json>::MemberBegin(*obj_)} : iterator{};
   }
 
   iterator end() const {
-    return obj_ ? iterator{JsonTraits<Json>::MemberEnd(*obj_), handler_}
-                : iterator{};
+    return obj_ ? iterator{JsonTraits<Json>::MemberEnd(*obj_)} : iterator{};
   }
 
   [[nodiscard]] const Json* node() const noexcept { return obj_; }
 
  private:
   const Json* obj_ = nullptr;
-  ErrorHandler* handler_ = nullptr;
 };
 
-template <typename Json, JsonErrorHandler ErrorHandler>
-template <typename ExistencePolicy, std::size_t N>
-JsonObjectView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewObject(
-    const Parts<N>& path) const {
-  static_assert(std::is_same_v<ExistencePolicy, Required> ||
-                    std::is_same_v<ExistencePolicy, Optional>,
-                "JsonView: unsupported ExistencePolicy");
+template <typename Json, JsonErrorHandler E>
+template <AccessPolicy Policy, std::size_t N>
+JsonObjectView<Json, E> JsonView<Json, E>::ViewObject(const Parts<N>& path,
+                                                      E& handler) const {
   if (!valid()) {
-    return JsonObjectView<Json, ErrorHandler>{};
+    return JsonObjectView<Json, E>{};
   }
   const Json* node =
-      detail::ResolveWithPolicy<Json, N, ExistencePolicy>(json_, path,
-                                                                    handler_);
+      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, handler);
   if (!node) {
-    return JsonObjectView<Json, ErrorHandler>{};
+    return JsonObjectView<Json, E>{};
   }
   if (!JsonTraits<Json>::IsObject(*node)) {
-    if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-      handler_.OnTypeMismatch(detail::PathString(path));
+    if constexpr (std::is_same_v<Policy, Required>) {
+      handler.OnTypeMismatch(detail::PathString(path));
     }
-    return JsonObjectView<Json, ErrorHandler>{};
+    return JsonObjectView<Json, E>{};
   }
-  return JsonObjectView<Json, ErrorHandler>(*node, handler_);
+  return JsonObjectView<Json, E>(*node);
 }
 
 }  // namespace sc::json

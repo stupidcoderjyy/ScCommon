@@ -67,7 +67,6 @@ template <>
 struct JsonAccessTraits<rapidjson::Value> {
   using Json = rapidjson::Value;
 
-
   static bool GetInt(const Json& json, int& out) {
     if (json.IsInt()) {
       out = json.GetInt();
@@ -265,58 +264,55 @@ template <>
 struct JsonWriteTraits<rapidjson::Value> {
   using Json = rapidjson::Value;
 
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddChild(JsonOwner<Json, ErrorHandler>& owner,
-                        const Json& parent, std::string_view name) noexcept {
+  template <JsonErrorHandler E>
+  static Json* AddChild(JsonOwner<Json, E>& owner, const Json& parent,
+                        std::string_view name) noexcept {
     return AddValue(owner, parent, name, [](Json& node) { node.SetObject(); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddInt(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddInt(JsonOwner<Json, E>& owner, const Json& parent,
                       std::string_view name, int value) noexcept {
     return AddValue(owner, parent, name,
                     [value](Json& node) { node.SetInt(value); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddUint(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddUint(JsonOwner<Json, E>& owner, const Json& parent,
                        std::string_view name, unsigned int value) noexcept {
     return AddValue(owner, parent, name,
                     [value](Json& node) { node.SetUint(value); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddInt64(JsonOwner<Json, ErrorHandler>& owner,
-                        const Json& parent, std::string_view name,
-                        std::int64_t value) noexcept {
+  template <JsonErrorHandler E>
+  static Json* AddInt64(JsonOwner<Json, E>& owner, const Json& parent,
+                        std::string_view name, std::int64_t value) noexcept {
     return AddValue(owner, parent, name,
                     [value](Json& node) { node.SetInt64(value); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddUint64(JsonOwner<Json, ErrorHandler>& owner,
-                         const Json& parent, std::string_view name,
-                         std::uint64_t value) noexcept {
+  template <JsonErrorHandler E>
+  static Json* AddUint64(JsonOwner<Json, E>& owner, const Json& parent,
+                         std::string_view name, std::uint64_t value) noexcept {
     return AddValue(owner, parent, name,
                     [value](Json& node) { node.SetUint64(value); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddDouble(JsonOwner<Json, ErrorHandler>& owner,
-                         const Json& parent, std::string_view name,
-                         double value) noexcept {
+  template <JsonErrorHandler E>
+  static Json* AddDouble(JsonOwner<Json, E>& owner, const Json& parent,
+                         std::string_view name, double value) noexcept {
     return AddValue(owner, parent, name,
                     [value](Json& node) { node.SetDouble(value); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddBool(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddBool(JsonOwner<Json, E>& owner, const Json& parent,
                        std::string_view name, bool value) noexcept {
     return AddValue(owner, parent, name,
                     [value](Json& node) { node.SetBool(value); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddNull(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+  template <JsonErrorHandler E>
+  static Json* AddNull(JsonOwner<Json, E>& owner, const Json& parent,
                        std::string_view name) noexcept {
     return AddValue(owner, parent, name, [](Json& node) { node.SetNull(); });
   }
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddString(JsonOwner<Json, ErrorHandler>& owner,
-                         const Json& parent, std::string_view name,
+  template <JsonErrorHandler E>
+  static Json* AddString(JsonOwner<Json, E>& owner, const Json& parent,
+                         std::string_view name,
                          std::string_view value) noexcept {
     auto& allocator = owner.GetAllocator();
     return AddValue(owner, parent, name, [&allocator, value](Json& node) {
@@ -325,19 +321,17 @@ struct JsonWriteTraits<rapidjson::Value> {
     });
   }
 
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AddList(JsonOwner<Json, ErrorHandler>& owner,
-                       const Json& parent, std::string_view name) noexcept {
-    return AddValue(owner, parent, name,
-                    [](Json& node) { node.SetArray(); });
+  template <JsonErrorHandler E>
+  static Json* AddList(JsonOwner<Json, E>& owner, const Json& parent,
+                       std::string_view name) noexcept {
+    return AddValue(owner, parent, name, [](Json& node) { node.SetArray(); });
   }
 
-  template <JsonErrorHandler ErrorHandler, typename T>
-  static Json* Append(JsonOwner<Json, ErrorHandler>& owner, Json& array,
+  template <JsonErrorHandler E, typename T>
+  static Json* Append(JsonOwner<Json, E>& owner, Json& array,
                       const T& value) noexcept {
     try {
-      if constexpr (std::is_same_v<T, int> ||
-                    std::is_same_v<T, unsigned int> ||
+      if constexpr (std::is_same_v<T, int> || std::is_same_v<T, unsigned int> ||
                     std::is_same_v<T, std::int64_t> ||
                     std::is_same_v<T, std::uint64_t> ||
                     std::is_same_v<T, double> || std::is_same_v<T, bool>) {
@@ -351,9 +345,8 @@ struct JsonWriteTraits<rapidjson::Value> {
     }
   }
 
-  template <JsonErrorHandler ErrorHandler>
-  static Json* AppendObject(JsonOwner<Json, ErrorHandler>& owner,
-                            Json& array) noexcept {
+  template <JsonErrorHandler E>
+  static Json* AppendObject(JsonOwner<Json, E>& owner, Json& array) noexcept {
     try {
       rapidjson::Value child(rapidjson::kObjectType);
       array.PushBack(child, owner.GetAllocator());
@@ -364,10 +357,9 @@ struct JsonWriteTraits<rapidjson::Value> {
   }
 
  private:
-  template <JsonErrorHandler ErrorHandler, typename Setter>
-  static Json* AddValue(JsonOwner<Json, ErrorHandler>& owner,
-                        const Json& parent, std::string_view name,
-                        Setter setter) noexcept {
+  template <JsonErrorHandler E, typename Setter>
+  static Json* AddValue(JsonOwner<Json, E>& owner, const Json& parent,
+                        std::string_view name, Setter setter) noexcept {
     try {
       if (!parent.IsObject()) {
         return nullptr;
@@ -398,37 +390,35 @@ struct OwnedJson<rapidjson::Value> {
   using Type = rapidjson::Document;
 };
 
-template <JsonErrorHandler ErrorHandler>
-struct JsonParseTraits<rapidjson::Value, ErrorHandler> {
+template <JsonErrorHandler E>
+struct JsonParseTraits<rapidjson::Value, E> {
   static void Parse(std::string_view text, rapidjson::Document& out,
-                    ErrorHandler& handler) {
+                    E& handler) {
     out.template Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(
         text.data(), text.size());
     if (out.HasParseError()) {
       std::runtime_error e("rapidjson parse error at offset " +
                            std::to_string(out.GetErrorOffset()));
-      handler.OnJsonParseError(text, e);
+      handler.OnJsonParseError(e.what());
       throw std::move(e);
     }
   }
 
-  static void Parse(std::istream& is, rapidjson::Document& out,
-                    ErrorHandler& handler) {
+  static void Parse(std::istream& is, rapidjson::Document& out, E& handler) {
     rapidjson::IStreamWrapper wrapper(is);
     out.ParseStream(wrapper);
     if (out.HasParseError()) {
       std::runtime_error e("rapidjson parse error at offset " +
                            std::to_string(out.GetErrorOffset()));
-      handler.OnJsonParseError(std::string_view{}, e);
+      handler.OnJsonParseError(e.what());
       throw std::move(e);
     }
   }
 };
 
-template <JsonErrorHandler ErrorHandler>
-struct JsonOwner<rapidjson::Value, ErrorHandler>
-    : JsonOwnerStorage<rapidjson::Value, ErrorHandler> {
-  using JsonOwnerStorage<rapidjson::Value, ErrorHandler>::JsonOwnerStorage;
+template <JsonErrorHandler E>
+struct JsonOwner<rapidjson::Value, E> : JsonOwnerStorage<rapidjson::Value, E> {
+  using JsonOwnerStorage<rapidjson::Value, E>::JsonOwnerStorage;
 
   rapidjson::Document::AllocatorType& GetAllocator() {
     return this->json_.GetAllocator();

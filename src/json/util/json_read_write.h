@@ -41,14 +41,13 @@ template <typename T, typename = void>
 struct is_sequence : std::false_type {};
 template <typename T>
 struct is_sequence<T, std::void_t<typename T::value_type,
-                                 decltype(std::declval<T&>().push_back(
-                                     std::declval<typename T::value_type>()))>>
+                                  decltype(std::declval<T&>().push_back(
+                                      std::declval<typename T::value_type>()))>>
     : std::true_type {};
 template <typename T>
 inline constexpr bool is_sequence_v =
     !std::is_same_v<std::remove_cv_t<T>, std::string> &&
-    !std::is_same_v<std::remove_cv_t<T>, std::wstring> &&
-    is_sequence<T>::value;
+    !std::is_same_v<std::remove_cv_t<T>, std::wstring> && is_sequence<T>::value;
 
 // 映射容器：有 key_type 与 mapped_type
 template <typename T, typename = void>
@@ -104,8 +103,8 @@ struct Extractor {
 
 template <typename Json, typename T>
 struct Injector {
-  template <JsonErrorHandler ErrorHandler>
-  static bool Inject(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+  template <JsonErrorHandler E>
+  static bool Inject(JsonOwner<Json, E>& owner, const Json& parent,
                      std::string_view name, const T& val) {
     if constexpr (std::is_same_v<T, int>) {
       return JsonTraits<Json>::AddInt(owner, parent, name, val);
@@ -140,6 +139,6 @@ struct Injector {
   }
 };
 
-} // namespace sc::json
+}  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_READ_WRITE_H
