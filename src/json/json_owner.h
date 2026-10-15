@@ -23,6 +23,11 @@ template <typename Json,
           JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
 struct JsonOwnerStorage {
   JsonOwnerStorage() = default;
+  explicit JsonOwnerStorage(OwnedJsonT<Json>&& json,
+                            ErrorHandler handler = ErrorHandler{})
+      : json_(std::move(json)),
+        err_handler_(std::move(handler)),
+        valid_(true) {}
   JsonOwnerStorage(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage& operator=(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage(JsonOwnerStorage&& o) noexcept
@@ -67,7 +72,9 @@ struct JsonOwnerStorage {
 // 主模板
 template <typename Json,
           JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
-struct JsonOwner : JsonOwnerStorage<Json, ErrorHandler> {};
+struct JsonOwner : JsonOwnerStorage<Json, ErrorHandler> {
+  using JsonOwnerStorage<Json, ErrorHandler>::JsonOwnerStorage;
+};
 
 template <typename Json,
           JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>

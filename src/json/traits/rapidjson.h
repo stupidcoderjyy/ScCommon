@@ -61,7 +61,6 @@ struct JsonTypeTraits<rapidjson::Value> {
   static bool IsString(const Json& json) { return json.IsString(); }
   static bool IsBool(const Json& json) { return json.IsBool(); }
   static bool IsNull(const Json& json) { return json.IsNull(); }
-
 };
 
 template <>
@@ -125,7 +124,6 @@ struct JsonAccessTraits<rapidjson::Value> {
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json[static_cast<rapidjson::SizeType>(index)];
   }
-
 };
 
 template <>
@@ -189,8 +187,8 @@ struct JsonWriteTraits<rapidjson::Value> {
   using Json = rapidjson::Value;
 
   template <JsonErrorHandler ErrorHandler>
-  static Json* AddChild(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
-                        std::string_view name) noexcept {
+  static Json* AddChild(JsonOwner<Json, ErrorHandler>& owner,
+                        const Json& parent, std::string_view name) noexcept {
     return AddValue(owner, parent, name, [](Json& node) { node.SetObject(); });
   }
   template <JsonErrorHandler ErrorHandler>
@@ -206,8 +204,9 @@ struct JsonWriteTraits<rapidjson::Value> {
                     [value](Json& node) { node.SetUint(value); });
   }
   template <JsonErrorHandler ErrorHandler>
-  static Json* AddInt64(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
-                        std::string_view name, std::int64_t value) noexcept {
+  static Json* AddInt64(JsonOwner<Json, ErrorHandler>& owner,
+                        const Json& parent, std::string_view name,
+                        std::int64_t value) noexcept {
     return AddValue(owner, parent, name,
                     [value](Json& node) { node.SetInt64(value); });
   }
@@ -249,8 +248,9 @@ struct JsonWriteTraits<rapidjson::Value> {
 
  private:
   template <JsonErrorHandler ErrorHandler, typename Setter>
-  static Json* AddValue(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
-                        std::string_view name, Setter setter) noexcept {
+  static Json* AddValue(JsonOwner<Json, ErrorHandler>& owner,
+                        const Json& parent, std::string_view name,
+                        Setter setter) noexcept {
     try {
       if (!parent.IsObject()) {
         return nullptr;

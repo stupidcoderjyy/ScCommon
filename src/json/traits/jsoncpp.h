@@ -35,7 +35,6 @@ struct JsonTypeTraits<Json::Value> {
   static bool IsString(const Json& json) { return json.isString(); }
   static bool IsBool(const Json& json) { return json.isBool(); }
   static bool IsNull(const Json& json) { return json.isNull(); }
-
 };
 
 template <>
@@ -60,7 +59,6 @@ struct JsonAccessTraits<Json::Value> {
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json[static_cast<Json::ArrayIndex>(index)];
   }
-
 };
 
 template <>
@@ -178,7 +176,8 @@ struct JsonWriteTraits<Json::Value> {
   template <JsonErrorHandler ErrorHandler>
   static ::Json::Value* AddDouble(JsonOwner<::Json::Value, ErrorHandler>&,
                                   const ::Json::Value& parent,
-                                  std::string_view name, double value) noexcept {
+                                  std::string_view name,
+                                  double value) noexcept {
     return SetAt(parent, name, value);
   }
   template <JsonErrorHandler ErrorHandler>

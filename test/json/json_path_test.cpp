@@ -123,48 +123,48 @@ TEST(JsonPath, TokensOutliveTheirScope) {
     EXPECT_EQ((std::vector<std::string>{"a", "b", "[2]"}), tokens);
 }
 
-// ---------------- 运行期路径 RuntimePath ----------------
+// ---------------- 运行期路径 RUNTIME_PATH ----------------
 
-TEST(JsonPath, RuntimePathTokenizesLikeCompileTime) {
-    const RuntimePath path("a.b[2].c.d");
+TEST(JsonPath, RuntimePathTokens) {
+    const std::string owning = "a";
+    const auto path = RUNTIME_PATH(owning, "b", "[2]", "c", "d");
     ASSERT_EQ(5u, path.Size());
     EXPECT_EQ(std::string_view("a"), path[0]);
     EXPECT_EQ(std::string_view("b"), path[1]);
     EXPECT_EQ(std::string_view("[2]"), path[2]);
     EXPECT_EQ(std::string_view("c"), path[3]);
     EXPECT_EQ(std::string_view("d"), path[4]);
-    EXPECT_FALSE(path.Empty());
+    static_assert(decltype(path)::kSize == 5);
 }
 
 TEST(JsonPath, RuntimePathEdgeCases) {
-    // 空路径：0 个 token
-    EXPECT_TRUE(RuntimePath("").Empty());
-    EXPECT_EQ(0u, RuntimePath("").Size());
+    const auto empty = RUNTIME_PATH();
+    EXPECT_EQ(0u, empty.Size());
 
-    // 纯下标开头 / 连续下标
-    const RuntimePath indexed("[0].a");
+    const auto indexed = RUNTIME_PATH("[0]", "a");
     ASSERT_EQ(2u, indexed.Size());
     EXPECT_EQ(std::string_view("[0]"), indexed[0]);
     EXPECT_EQ(std::string_view("a"), indexed[1]);
 
-    const RuntimePath consecutive("a[0][1]");
+    const auto consecutive = RUNTIME_PATH("a", "[0]", "[1]");
     ASSERT_EQ(3u, consecutive.Size());
     EXPECT_EQ(std::string_view("a"), consecutive[0]);
     EXPECT_EQ(std::string_view("[0]"), consecutive[1]);
     EXPECT_EQ(std::string_view("[1]"), consecutive[2]);
 
-    // 非法路径不做编译期校验，原样保留 token（由解析阶段报错）
-    const RuntimePath empty_segment("a..b");
-    ASSERT_EQ(3u, empty_segment.Size());
-    EXPECT_TRUE(empty_segment[1].empty());
+    const auto empty_token = RUNTIME_PATH("a", "");
+    ASSERT_EQ(2u, empty_token.Size());
+    EXPECT_TRUE(empty_token[1].empty());
 
-    const RuntimePath unclosed("a[1");
+    const auto unclosed = RUNTIME_PATH("a", "[1");
     ASSERT_EQ(2u, unclosed.Size());
     EXPECT_EQ(std::string_view("[1"), unclosed[1]);
 }
 
-TEST(JsonPath, RuntimePathSatisfiesPathLike) {
-    static_assert(PathLike<RuntimePath>);
-    static_assert(PathLike<Parts<3>>);
-    SUCCEED();
+TEST(JsonPath, RuntimePathSub) {
+    const auto path = RUNTIME_PATH("a", "b", "c");
+    const auto sub = path.Sub<1, 2>();
+    ASSERT_EQ(2u, sub.Size());
+    EXPECT_EQ(std::string_view("b"), sub[0]);
+    EXPECT_EQ(std::string_view("c"), sub[1]);
 }

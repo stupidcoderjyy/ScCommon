@@ -72,18 +72,18 @@ class JsonObjectView {
 };
 
 template <typename Json, JsonErrorHandler ErrorHandler>
-template <typename ExistencePolicy, typename Path>
-  requires PathLike<Path>
+template <typename ExistencePolicy, std::size_t N>
 JsonObjectView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewObject(
-    const Path& path) const {
+    const Parts<N>& path) const {
   static_assert(std::is_same_v<ExistencePolicy, Required> ||
                     std::is_same_v<ExistencePolicy, Optional>,
                 "JsonView: unsupported ExistencePolicy");
   if (!valid()) {
     return JsonObjectView<Json, ErrorHandler>{};
   }
-  const Json* node = detail::ResolveWithPolicy<Json, Path, ExistencePolicy>(
-      json_, path, handler_);
+  const Json* node =
+      detail::ResolveWithPolicy<Json, N, ExistencePolicy>(json_, path,
+                                                                    handler_);
   if (!node) {
     return JsonObjectView<Json, ErrorHandler>{};
   }

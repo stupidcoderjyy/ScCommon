@@ -5,7 +5,6 @@
 #ifndef SCCOMMON_JSON_VIEW_H
 #define SCCOMMON_JSON_VIEW_H
 
-#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -53,27 +52,25 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
   JsonView& operator=(const JsonView&) noexcept = default;
   JsonView& operator=(JsonView&&) noexcept = default;
 
-  template <typename ExistencePolicy = Optional, typename Path>
-    requires PathLike<Path>
-  JsonView View(const Path& path) const {
+  template <typename ExistencePolicy = Optional, std::size_t N>
+  JsonView View(const Parts<N>& path) const {
     static_assert(std::is_same_v<ExistencePolicy, Required> ||
                       std::is_same_v<ExistencePolicy, Optional>,
                   "JsonView: unsupported ExistencePolicy");
     if (!valid()) {
       return JsonView{};
     }
-    const Json* node = detail::ResolveWithPolicy<Json, Path, ExistencePolicy>(
-        json_, path, handler_);
+    const Json* node =
+        detail::ResolveWithPolicy<Json, N, ExistencePolicy>(
+            json_, path, handler_);
     return node ? JsonView{*node, handler_} : JsonView{};
   }
 
-  template <typename ExistencePolicy = Optional, typename Path>
-    requires PathLike<Path>
-  JsonArrayView<Json, ErrorHandler> ViewArray(const Path& path) const;
+  template <typename ExistencePolicy = Optional, std::size_t N>
+  JsonArrayView<Json, ErrorHandler> ViewArray(const Parts<N>& path) const;
 
-  template <typename ExistencePolicy = Optional, typename Path>
-    requires PathLike<Path>
-  JsonObjectView<Json, ErrorHandler> ViewObject(const Path& path) const;
+  template <typename ExistencePolicy = Optional, std::size_t N>
+  JsonObjectView<Json, ErrorHandler> ViewObject(const Parts<N>& path) const;
 
   [[nodiscard]] bool valid() const noexcept { return json_; }
   [[nodiscard]] const Json* node() const noexcept { return json_; }

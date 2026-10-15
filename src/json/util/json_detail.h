@@ -32,8 +32,8 @@ struct ArrowProxy {
 };
 
 // 把路径还原成 "a.b[2].c" 形式并追加到 out（Parts<N> 与 RuntimePath 通用）。
-template <PathLike Path>
-void AppendPath(std::string& out, const Path& path) {
+template <std::size_t N>
+void AppendPath(std::string& out, const Parts<N>& path) {
   bool first = true;
   for (std::size_t i = 0; i < path.Size(); ++i) {
     const std::string_view token = path[i];
@@ -46,8 +46,8 @@ void AppendPath(std::string& out, const Path& path) {
   }
 }
 
-template <PathLike Path>
-std::string PathString(const Path& path) {
+template <std::size_t N>
+std::string PathString(const Parts<N>& path) {
   std::string out;
   AppendPath(out, path);
   return out;
@@ -92,9 +92,9 @@ const Json* Step(const Json* node, std::string_view token,
   return &JsonTraits<Json>::GetArrayElement(*node, index);
 }
 
-template <typename Json, PathLike Path, bool kCreateOnMissing = false,
+template <typename Json, std::size_t N, bool kCreateOnMissing = false,
           JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
-Json* Resolve(const Json* cur, const Path& path,
+Json* Resolve(const Json* cur, const Parts<N>& path,
               JsonOwner<Json, ErrorHandler>* owner = nullptr) {
   Json* node = const_cast<Json*>(cur);
   for (std::size_t i = 0; node != nullptr && i < path.Size(); ++i) {
@@ -104,21 +104,20 @@ Json* Resolve(const Json* cur, const Path& path,
   return node;
 }
 
-template <typename Json, PathLike Path, typename ExistencePolicy,
-          JsonErrorHandler ErrorHandler, bool kCreateOnMissing = false>
-Json* ResolveWithPolicy(const Json* cur, const Path& path,
+template <typename Json, std::size_t N,
+          typename ExistencePolicy, JsonErrorHandler ErrorHandler, bool kCreateOnMissing = false>
+Json* ResolveWithPolicy(const Json* cur, const Parts<N>& path,
                         ErrorHandler& handler,
                         JsonOwner<Json, ErrorHandler>* owner = nullptr) {
   constexpr auto required = std::is_same_v<ExistencePolicy, Required>;
   constexpr auto create = required && kCreateOnMissing;
   if (auto* res =
-          detail::Resolve<Json, Path, create, ErrorHandler>(cur, path, owner);
+          detail::Resolve<Json, N, create, ErrorHandler>(cur, path, owner);
       res) {
     return res;
   }
   if constexpr (required) {
-    handler.OnPathResolveError(
-        std::format("JsonParser: cannot resolve path '{}'", PathString(path)));
+    handler.OnPathResolveError(PathString(path));
   }
   return nullptr;
 }

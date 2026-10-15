@@ -68,7 +68,6 @@ struct JsonTypeTraits<nlohmann::json> {
   static bool IsString(const Json& json) { return json.is_string(); }
   static bool IsBool(const Json& json) { return json.is_boolean(); }
   static bool IsNull(const Json& json) { return json.is_null(); }
-
 };
 
 template <>
@@ -102,7 +101,6 @@ struct JsonAccessTraits<nlohmann::json> {
   static const Json& GetArrayElement(const Json& json, std::size_t index) {
     return json.at(index);
   }
-
 };
 
 template <>
@@ -210,7 +208,8 @@ struct JsonWriteTraits<nlohmann::json> {
   }
   template <JsonErrorHandler ErrorHandler>
   static Json* AddString(JsonOwner<Json, ErrorHandler>&, const Json& parent,
-                         std::string_view name, std::string_view value) noexcept {
+                         std::string_view name,
+                         std::string_view value) noexcept {
     return SetAt(parent, name, std::string(value));
   }
 

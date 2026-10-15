@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "json/json_view.hpp"
+#include "json/json_writer.h"
 #include "json/view/json_array_view.h"
 #include "json/view/json_object_view.h"
 
@@ -41,8 +42,8 @@ struct SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
   static inline std::vector<std::string> mismatches;
   static inline std::vector<std::string> parse_errors;
 
-  static void OnPathResolveError(std::string_view msg) {
-    resolve_errors.emplace_back(msg);
+  static void OnPathResolveError(std::string_view path) {
+    resolve_errors.emplace_back(path);
   }
   static void OnTypeMismatch(std::string_view path) {
     mismatches.emplace_back(path);
@@ -76,9 +77,9 @@ struct SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
       std::string request_id = {})
       : request_id_(std::move(request_id)) {}
 
-  void OnPathResolveError(std::string_view msg) const {
+  void OnPathResolveError(std::string_view path) const {
     throw SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(
-        request_id_, std::string(msg));
+        request_id_, std::string(path));
   }
   void OnTypeMismatch(std::string_view path) const {
     throw SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(
@@ -393,7 +394,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, ArrayViewRequiredReportsErrors) {
   EXPECT_TRUE(view.ViewArray<Required>("no.such"_path).empty());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos,
-            ErrorHandler::resolve_errors.front().find("path 'no.such'"));
+            ErrorHandler::resolve_errors.front().find("no.such"));
 
   // 节点存在但不是数组 → OnTypeMismatch
   EXPECT_TRUE(view.ViewArray<Required>("point"_path).empty());
@@ -693,7 +694,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutRequiredReportsErrors) {
   EXPECT_EQ(-1, value);
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos,
-            ErrorHandler::resolve_errors.front().find("path 'no.such.path'"));
+            ErrorHandler::resolve_errors.front().find("no.such.path"));
 
   // 数组越界 → OnPathResolveError
   view.Put<int, Required>("list[9]"_path, value, -1);
@@ -715,7 +716,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutRequiredReportsErrors) {
   EXPECT_EQ(-1, value);
   EXPECT_EQ(3u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.back().find(
-                                   "path 'no.such.again'"));
+                                   "no.such.again"));
 
   view.Put<int, Required>("d"_path, value, -1);  // double 不是 int
   EXPECT_EQ(3u, ErrorHandler::mismatches.size());
@@ -863,7 +864,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutWithRuntimePath) {
   JsonView<SC_JSON_TYPE> view(json);
 
   const std::string key = "a";
-  const RuntimePath path(key + ".b");
+  const auto path = RUNTIME_PATH(key, "b");
   int value = 0;
   view.Put<int, Required>(path, value);
   EXPECT_EQ(42, value);
@@ -905,7 +906,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutNullIsTypeMismatchNotMissing) {
   // 继续在 null 下面走路径属于「解析失败」
   EXPECT_FALSE(view.View<Required>("nil.child"_path).valid());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
-  EXPECT_TRUE(ErrorHandler::resolve_errors.front().find("path 'nil.child'") !=
+  EXPECT_TRUE(ErrorHandler::resolve_errors.front().find("nil.child") !=
               std::string::npos);
   EXPECT_EQ(1u, ErrorHandler::mismatches.size());  // 没有多记一次类型不符
 }
@@ -981,7 +982,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutOptionalTargetTurnsNullIntoNullopt) {
   EXPECT_FALSE(required_missing.has_value());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos, ErrorHandler::resolve_errors.front().find(
-                                   "path 'no.such.path'"));
+                                   "no.such.path"));
   EXPECT_EQ(1u, ErrorHandler::mismatches.size());
 }
 
@@ -1149,7 +1150,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetOnArrowAndRuntimePath) {
   EXPECT_EQ(7, objects.begin()->Get("no.such"_path, 7));  // T 由默认值推导
 
   // 运行期路径同样可用
-  const RuntimePath path(std::string("a.b"));
+  const auto path = RUNTIME_PATH("a", "b");
   const int from_runtime = view.Get<int, Required>(path);
   EXPECT_EQ(42, from_runtime);
 }
@@ -1372,10 +1373,10 @@ TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathResolvesDynamicPath) {
   JsonView<SC_JSON_TYPE> view(json);
 
   const std::string prefix = "a";
-  const RuntimePath path(prefix + ".b");
+  const auto path = RUNTIME_PATH(prefix, "b");
   EXPECT_EQ(42, view.View<Required>(path).GetInt());
 
-  const RuntimePath indexed(std::string("obj_list[1].id"));
+  const auto indexed = RUNTIME_PATH("obj_list", "[1]", "id");
   ASSERT_EQ(3u, indexed.Size());
   EXPECT_EQ(2, view.View<Required>(indexed).GetInt());
 }
@@ -1389,13 +1390,13 @@ TEST(SC_JSON_TEST_SUITE_NAME, RuntimePathInvalidReportsResolveError) {
   JsonView<SC_JSON_TYPE, ErrorHandler> view(json, handler);
 
   // 编译期字面量会直接编译失败；运行期路径改由 OnPathResolveError 报告
-  const RuntimePath empty_segment("a..b");
+  const auto empty_segment = RUNTIME_PATH("a", "");
   EXPECT_FALSE(view.View<Required>(empty_segment).valid());
   ASSERT_EQ(1u, ErrorHandler::resolve_errors.size());
   EXPECT_NE(std::string::npos,
-            ErrorHandler::resolve_errors.front().find("path 'a..b'"));
+            ErrorHandler::resolve_errors.front().find("a."));
 
-  const RuntimePath unclosed("a[1");
+  const auto unclosed = RUNTIME_PATH("a", "[1");
   EXPECT_FALSE(view.View<Required>(unclosed).valid());
   EXPECT_EQ(2u, ErrorHandler::resolve_errors.size());
 
@@ -1465,8 +1466,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, AutoChainOnWrite) {
   const SC_JSON_TYPE& root = owner.json();
 
   auto resolve = [&]<typename T0>(const T0& path) {
-    return detail::ResolveWithPolicy<SC_JSON_TYPE, std::decay_t<T0>,
-                                     Required, ErrorHandler, true>(
+    return detail::ResolveWithPolicy<SC_JSON_TYPE, std::decay_t<T0>::kSize, Required,
+                                     ErrorHandler, true>(
         &root, path, owner.err_handler(), &owner);
   };
 
@@ -1552,4 +1553,50 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddString) {
       JsonTraits<SC_JSON_TYPE>::AddString(owner, owner.json(), "v", "hi");
   ASSERT_NE(nullptr, node);
   EXPECT_EQ(std::string("hi"), JsonTraits<SC_JSON_TYPE>::GetString(*node));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({"a":{},"scalar":7})"));
+  JsonWriter<SC_JSON_TYPE> writer(owner);
+
+  auto child = [&](std::string_view key) {
+    return JsonTraits<SC_JSON_TYPE>::TryGetChild(owner.json(), key);
+  };
+
+  writer["i"_path] = 42;
+  writer["u"_path] = 7u;
+  writer["i64"_path] = -9007199254740993LL;
+  writer["u64"_path] = 18446744073709551615ULL;
+  writer["d"_path] = 3.5;
+  writer["b"_path] = true;
+  writer["s"_path] = std::string("hi");
+  writer["n"_path] = nullptr;
+
+  ASSERT_NE(nullptr, child("i"));
+  EXPECT_EQ(42, JsonTraits<SC_JSON_TYPE>::GetInt(*child("i")));
+  EXPECT_EQ(7u, JsonTraits<SC_JSON_TYPE>::GetUint(*child("u")));
+  EXPECT_EQ(-9007199254740993LL,
+            JsonTraits<SC_JSON_TYPE>::GetInt64(*child("i64")));
+  EXPECT_EQ(18446744073709551615ULL,
+            JsonTraits<SC_JSON_TYPE>::GetUint64(*child("u64")));
+  EXPECT_DOUBLE_EQ(3.5, JsonTraits<SC_JSON_TYPE>::GetDouble(*child("d")));
+  EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::GetBool(*child("b")));
+  EXPECT_EQ(std::string("hi"),
+            JsonTraits<SC_JSON_TYPE>::GetString(*child("s")));
+  EXPECT_TRUE(JsonTraits<SC_JSON_TYPE>::IsNull(*child("n")));
+
+  writer["a.x"_path] = 5;
+  const SC_JSON_TYPE* a = child("a");
+  ASSERT_NE(nullptr, a);
+  EXPECT_EQ(5, JsonTraits<SC_JSON_TYPE>::GetInt(
+                   *JsonTraits<SC_JSON_TYPE>::TryGetChild(*a, "x")));
+
+  writer["new.deep"_path] = 9;
+  const SC_JSON_TYPE* created = child("new");
+  ASSERT_NE(nullptr, created);
+  EXPECT_EQ(9, JsonTraits<SC_JSON_TYPE>::GetInt(
+                   *JsonTraits<SC_JSON_TYPE>::TryGetChild(*created, "deep")));
+
+  EXPECT_THROW(writer[""_path] = 1, std::runtime_error);
+  EXPECT_THROW(writer["scalar.y"_path] = 1, std::runtime_error);
 }

@@ -77,8 +77,9 @@ struct JsonWriteTraits {
                        std::string_view name, unsigned int value) noexcept;
 
   template <JsonErrorHandler ErrorHandler>
-  static Json* AddInt64(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
-                        std::string_view name, std::int64_t value) noexcept;
+  static Json* AddInt64(JsonOwner<Json, ErrorHandler>& owner,
+                        const Json& parent, std::string_view name,
+                        std::int64_t value) noexcept;
 
   template <JsonErrorHandler ErrorHandler>
   static Json* AddUint64(JsonOwner<Json, ErrorHandler>& owner,
@@ -101,7 +102,7 @@ struct JsonWriteTraits {
   template <JsonErrorHandler ErrorHandler>
   static Json* AddString(JsonOwner<Json, ErrorHandler>& owner,
                          const Json& parent, std::string_view name,
-                        std::string_view value) noexcept;
+                         std::string_view value) noexcept;
 };
 
 template <typename Json>

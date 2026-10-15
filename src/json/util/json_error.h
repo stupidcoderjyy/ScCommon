@@ -14,8 +14,9 @@
 namespace sc::json {
 
 struct DefaultJsonErrorHandler {
-  static void OnPathResolveError(std::string_view msg) {
-    throw std::runtime_error(msg.data());
+  static void OnPathResolveError(std::string_view path) {
+    throw std::runtime_error("JsonParser: failed to resolve path '" +
+                             std::string(path) + "'");
   }
   static void OnTypeMismatch(std::string_view path) {
     throw std::runtime_error("JsonParser: type mismatch at path '" +

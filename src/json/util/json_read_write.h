@@ -2,18 +2,16 @@
 // Created by jiangyuyun3 on 2026/9/14.
 //
 
-#ifndef SCCOMMON_JSON_EXTRACTOR_H
-#define SCCOMMON_JSON_EXTRACTOR_H
-#include <cstddef>
+#ifndef SCCOMMON_JSON_READ_WRITE_H
+#define SCCOMMON_JSON_READ_WRITE_H
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <type_traits>
 
-#include "json_traits.h"
+#include "../json_traits.h"
 
 namespace sc::json {
-
 namespace detail {
 
 // 恒假但依赖模板参数：只有 Extractor 真正实例化到该类型时才会触发断言
@@ -78,6 +76,44 @@ struct Extractor {
   }
 };
 
-}  // namespace sc::json
+template <typename Json, typename T>
+struct Injector {
+  template <JsonErrorHandler ErrorHandler>
+  static bool Inject(JsonOwner<Json, ErrorHandler>& owner, const Json& parent,
+                     std::string_view name, const T& val) {
+    if constexpr (std::is_same_v<T, int>) {
+      return JsonTraits<Json>::AddInt(owner, parent, name, val);
+    } else if constexpr (std::is_same_v<T, unsigned int>) {
+      return JsonTraits<Json>::AddUint(owner, parent, name, val);
+    } else if constexpr (std::is_same_v<T, std::int64_t>) {
+      return JsonTraits<Json>::AddInt64(owner, parent, name, val);
+    } else if constexpr (std::is_same_v<T, std::uint64_t>) {
+      return JsonTraits<Json>::AddUint64(owner, parent, name, val);
+    } else if constexpr (std::is_same_v<T, double>) {
+      return JsonTraits<Json>::AddDouble(owner, parent, name, val);
+    } else if constexpr (std::is_same_v<T, std::string>) {
+      return JsonTraits<Json>::AddString(owner, parent, name, val);
+    } else if constexpr (std::is_same_v<T, bool>) {
+      return JsonTraits<Json>::AddBool(owner, parent, name, val);
+    } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+      return JsonTraits<Json>::AddNull(owner, parent, name);
+    } else if constexpr (detail::is_optional_v<T>) {
+      if (!val.has_value()) {
+        return JsonTraits<Json>::AddNull(owner, parent, name);
+      }
+      using ValType = T::value_type;
+      static_assert(!detail::is_optional_v<ValType>,
+                    "JsonInjector: nested std::optional is not supported");
+      return Injector<Json, ValType>::Inject(owner, parent, name, *val);
+    } else {
+      static_assert(detail::unsupported_extractor_type<T>,
+                    "JsonInjector: unsupported type; specialize "
+                    "sc::json::Injector<Json, T>");
+    }
+    return false;
+  }
+};
 
-#endif  // SCCOMMON_JSON_EXTRACTOR_H
+} // namespace sc::json
+
+#endif  // SCCOMMON_JSON_READ_WRITE_H
