@@ -20,6 +20,7 @@ target_link_libraries(${TARGET} INTERFACE
     nlohmann_json::nlohmann_json
     JsonCpp::JsonCpp
     sc::reflect
+    sc::common
 )
 
 add_format_target(${TARGET}

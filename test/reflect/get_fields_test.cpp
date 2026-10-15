@@ -126,6 +126,8 @@ REGISTER_FIELDS(Mixed, i, s, d)
 
 namespace {
 
+using sc::reflect::operator""_s;
+
 // ---------------- 字段计数 ----------------
 
 static_assert(sc::reflect::FieldCount<Empty>() == 0);
@@ -251,6 +253,8 @@ static_assert(sc::reflect::RegisteredFields<Point>() == 2);
 static_assert(sc::reflect::RegisteredFields<Mixed>() == 3);
 static_assert(sc::reflect::GetFieldName<0, Point>() == "x");
 static_assert(sc::reflect::GetFieldName<1, Mixed>() == "s");
+static_assert(sc::reflect::GetFieldName<"i"_s, Mixed>() == "i");
+static_assert(sc::reflect::GetFieldName<"d"_s, Mixed>() == "d");
 
 // 反射判定与聚合约束
 static_assert(sc::reflect::Registered<Point>);
@@ -274,14 +278,22 @@ TEST(ReflectDescriptor, RegistrationDetection) {
   EXPECT_FALSE(sc::reflect::is_registered_v<Unregistered>);
 }
 
-TEST(ReflectDescriptor, FieldInfoCarriesNameAndMemberPointer) {
-  constexpr auto info = sc::reflect::GetFieldInfo<1, Mixed>();
-  static_assert(std::is_same_v<decltype(info.member), std::string Mixed::*>);
-  EXPECT_EQ("s", info.name);
+TEST(ReflectDescriptor, GetFieldByName) {
+  Point p{1, 2};
+  ASSERT_EQ(1, sc::reflect::GetField<"x"_s>(p));
+  ASSERT_EQ(2, sc::reflect::GetField<"y"_s>(p));
+  ASSERT_EQ(&p.x, &sc::reflect::GetField<"x"_s>(p));
 
-  constexpr auto first = sc::reflect::GetFieldInfo<0, Point>();
-  static_assert(std::is_same_v<decltype(first.member), int Point::*>);
-  EXPECT_EQ("x", first.name);
+  sc::reflect::GetField<"x"_s>(p) = 7;
+  ASSERT_EQ(7, p.x);
+
+  Mixed m{1, "s", 2.5};
+  ASSERT_EQ("s", sc::reflect::GetField<"s"_s>(m));
+  ASSERT_DOUBLE_EQ(2.5, sc::reflect::GetField<"d"_s>(m));
+
+  const Point cp{3, 4};
+  ASSERT_EQ(3, sc::reflect::GetField<"x"_s>(cp));
+  ASSERT_EQ(4, sc::reflect::GetField<"y"_s>(cp));
 }
 
 TEST(ReflectDescriptor, GetFieldNameMatchesMembers) {
@@ -290,6 +302,11 @@ TEST(ReflectDescriptor, GetFieldNameMatchesMembers) {
   EXPECT_EQ("i", (sc::reflect::GetFieldName<0, Mixed>()));
   EXPECT_EQ("s", (sc::reflect::GetFieldName<1, Mixed>()));
   EXPECT_EQ("d", (sc::reflect::GetFieldName<2, Mixed>()));
+  EXPECT_EQ("x", (sc::reflect::GetFieldName<"x"_s, Point>()));
+  EXPECT_EQ("y", (sc::reflect::GetFieldName<"y"_s, Point>()));
+  EXPECT_EQ("i", (sc::reflect::GetFieldName<"i"_s, Mixed>()));
+  EXPECT_EQ("s", (sc::reflect::GetFieldName<"s"_s, Mixed>()));
+  EXPECT_EQ("d", (sc::reflect::GetFieldName<"d"_s, Mixed>()));
 }
 
 TEST(ReflectDescriptor, GetFieldReturnsMutableReference) {

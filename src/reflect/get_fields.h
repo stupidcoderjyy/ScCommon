@@ -6,6 +6,7 @@
 #define SCCOMMON_DESCRIPTOR_H
 
 #include "count_fields.h"
+#include "def.h"
 
 namespace sc::reflect {
 
@@ -136,8 +137,11 @@ constexpr auto& GetFieldImpl(T& value) noexcept {
 
 }  // namespace detail
 
+//
+// 从字段索引获取字段信息
+//
 template <std::size_t I, typename T>
-constexpr auto GetFieldInfo() {
+consteval auto GetFieldInfo() {
   static_assert(is_registered_v<T>, "reflect: type is not registered");
   static_assert(ReflectAggregate<T>,
                 "reflect: only aggregate types are supported (base classes, "
@@ -147,7 +151,7 @@ constexpr auto GetFieldInfo() {
 }
 
 template <std::size_t I, typename T>
-constexpr std::string_view GetFieldName() {
+consteval std::string_view GetFieldName() {
   return GetFieldInfo<I, T>().name;
 }
 
@@ -167,6 +171,49 @@ constexpr const auto& GetField(const T& value) noexcept {
   } else {
     return detail::GetFieldImpl<I>(value);
   }
+}
+
+template <common::FixedString S, typename T, std::size_t... I>
+consteval std::size_t FindFieldIndex(std::index_sequence<I...>) {
+  auto fields = Descriptor<T>::fields();
+  // I的长度
+  auto i = sizeof...(I);
+  // 遍历所有I
+  ((std::get<I>(fields).name == S.view() ? (i = I, true) : false), ...);
+  return i;
+}
+
+//
+// 从字段名称获取字段信息
+//
+template <common::FixedString S, typename T>
+consteval auto GetFieldInfo() noexcept {
+  static_assert(is_registered_v<T>, "reflect: type is not registered");
+  static_assert(ReflectAggregate<T>,
+                "reflect: only aggregate types are supported (base classes, "
+                "private members, reference or bit-field members are unsafe)");
+  constexpr auto i =
+      FindFieldIndex<S, T>(std::make_index_sequence<RegisteredFields<T>()>{});
+  static_assert(i < RegisteredFields<T>(),
+                "reflect: no field with the given name");
+  return std::get<i>(Descriptor<T>::fields());
+}
+
+template <common::FixedString S, typename T>
+consteval std::string_view GetFieldName() {
+  return GetFieldInfo<S, T>().name;
+}
+
+template <common::FixedString S, typename T>
+constexpr auto& GetField(T& value) noexcept {
+  static_assert(is_registered_v<T>, "reflect: type is not registered");
+  return value.*GetFieldInfo<S, T>().member;
+}
+
+template <common::FixedString S, typename T>
+constexpr const auto& GetField(const T& value) noexcept {
+  static_assert(is_registered_v<T>, "reflect: type is not registered");
+  return value.*GetFieldInfo<S, T>().member;
 }
 
 }  // namespace sc::reflect

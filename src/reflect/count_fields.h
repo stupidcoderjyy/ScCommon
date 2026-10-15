@@ -11,7 +11,7 @@ namespace sc::reflect {
 
 struct Any {
   template <typename T>
-  constexpr operator T() const noexcept; //NOLINT
+  constexpr operator T() const noexcept;  // NOLINT
 };
 
 namespace detail {
