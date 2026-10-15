@@ -26,6 +26,39 @@ struct is_optional<std::optional<T>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_optional_v = is_optional<std::remove_cv_t<T>>::value;
 
+// 从成员指针取出成员类型
+template <typename M>
+struct MemberType;
+template <typename C, typename M>
+struct MemberType<M C::*> {
+  using Type = M;
+};
+template <typename M>
+using member_type_t = typename MemberType<M>::Type;
+
+// 序列容器：有 value_type 且能 push_back（排除 string 这类“值类型”）
+template <typename T, typename = void>
+struct is_sequence : std::false_type {};
+template <typename T>
+struct is_sequence<T, std::void_t<typename T::value_type,
+                                 decltype(std::declval<T&>().push_back(
+                                     std::declval<typename T::value_type>()))>>
+    : std::true_type {};
+template <typename T>
+inline constexpr bool is_sequence_v =
+    !std::is_same_v<std::remove_cv_t<T>, std::string> &&
+    !std::is_same_v<std::remove_cv_t<T>, std::wstring> &&
+    is_sequence<T>::value;
+
+// 映射容器：有 key_type 与 mapped_type
+template <typename T, typename = void>
+struct is_map : std::false_type {};
+template <typename T>
+struct is_map<T, std::void_t<typename T::key_type, typename T::mapped_type>>
+    : std::true_type {};
+template <typename T>
+inline constexpr bool is_map_v = is_map<T>::value;
+
 }  // namespace detail
 
 template <typename Json, typename T>

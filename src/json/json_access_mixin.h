@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "json_path.h"
+#include "reflect/get_fields.h"
 #include "util/json_detail.h"
 #include "util/json_error.h"
 #include "util/json_read_write.h"
@@ -110,6 +111,21 @@ class JsonAccessMixin {
     R out{};
     FillMap<ExistencePolicy, Extractor<Json, typename R::mapped_type>>(path,
                                                                        out);
+    return out;
+  }
+  template <typename T, typename ExistencePolicy = Optional, std::size_t N>
+  void PutType(const Parts<N>& path, T& t) {
+    const auto view = self().template View<ExistencePolicy>(path);
+    if (!view.valid()) {
+      return;
+    }
+    LoadType<ExistencePolicy>(*view.node(), t);
+  }
+
+  template <typename T, typename ExistencePolicy = Optional, std::size_t N>
+  [[nodiscard]] T GetType(const Parts<N>& path) {
+    T out{};
+    PutType<T, ExistencePolicy>(path, out);
     return out;
   }
 
@@ -213,6 +229,73 @@ class JsonAccessMixin {
       map.emplace(std::string(member.first), std::move(value));
     }
     return self();
+  }
+
+  template <typename ExistencePolicy, typename T>
+  bool LoadType(const Json& node, T& out) {
+    if constexpr (reflect::is_registered_v<T>) {
+      bool ok = true;
+      std::apply(
+          [&](const auto&... field) {
+            ((ok = ok && LoadField<ExistencePolicy>(node, field, out)),
+             ...);
+          },
+          reflect::Descriptor<T>::fields());
+      return ok;
+    } else if constexpr (detail::is_sequence_v<T>) {
+      if (!JsonTraits<Json>::IsArray(node)) {
+        return false;
+      }
+      const std::size_t size = JsonTraits<Json>::GetArraySize(node);
+      out.clear();
+      if constexpr (requires { out.reserve(std::size_t{}); }) {
+        out.reserve(size);
+      }
+      for (std::size_t i = 0; i < size; ++i) {
+        using Element = T::value_type;
+        Element element{};
+        if (!LoadType<ExistencePolicy>(
+                JsonTraits<Json>::GetArrayElement(node, i), element)) {
+          return false;
+        }
+        out.push_back(std::move(element));
+      }
+      return true;
+    } else if constexpr (detail::is_map_v<T>) {
+      if (!JsonTraits<Json>::IsObject(node)) {
+        return false;
+      }
+      out.clear();
+      for (auto it = JsonTraits<Json>::MemberBegin(node);
+           it != JsonTraits<Json>::MemberEnd(node); ++it) {
+        const auto member = *it;
+        using Mapped = T::mapped_type;
+        Mapped value{};
+        if (!LoadType<ExistencePolicy>(*member.second, value)) {
+          return false;
+        }
+        out.emplace(std::string(member.first), std::move(value));
+      }
+      return true;
+    } else {
+      return Extractor<Json, T>::Extract(node, out);
+    }
+  }
+
+  template <typename ExistencePolicy, typename FieldT, typename T>
+  bool LoadField(const Json& node, const FieldT& field, T& out) {
+    const Json* child = JsonTraits<Json>::TryGetChild(node, field.name);
+    if (!child) {
+      if constexpr (std::is_same_v<ExistencePolicy, Required>) {
+        self().error_handler().OnPathResolveError(field.name);
+      }
+      return false;
+    }
+    if (!LoadType<ExistencePolicy>(*child, out.*field.member)) {
+      self().error_handler().OnTypeMismatch(field.name);
+      return false;
+    }
+    return true;
   }
 };
 

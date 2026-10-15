@@ -304,3 +304,38 @@ static void SC_BENCH_NAME(WriteNestedNative)(benchmark::State& state) {
 
 SC_BENCH_REGISTER(SC_BENCH_NAME(WriteNestedOurs));
 SC_BENCH_REGISTER(SC_BENCH_NAME(WriteNestedNative));
+
+// ---------------- 7. 读：结构化解析 ----------------
+
+struct SC_BENCH_NAME(BenchStruct) {
+  unsigned int u = 0;
+  double d = 0;
+  bool flag = false;
+  std::string s;
+};
+
+REGISTER_FIELDS(SC_BENCH_NAME(BenchStruct), u, d, flag, s)
+
+static void SC_BENCH_NAME(AccessStructOurs)(benchmark::State& state) {
+  const auto json = SC_BENCH_MAKE_JSON();
+  JsonView<SC_BENCH_TYPE> view(json);
+  for (auto _ : state) {
+    auto value = view.GetType<SC_BENCH_NAME(BenchStruct)>(""_path);
+    benchmark::DoNotOptimize(value);
+  }
+}
+
+static void SC_BENCH_NAME(AccessStructNative)(benchmark::State& state) {
+  const auto json = SC_BENCH_MAKE_JSON();
+  for (auto _ : state) {
+    SC_BENCH_NAME(BenchStruct) value;
+    value.u = SC_BENCH_NATIVE_GET_UINT(json["u"]);
+    value.d = SC_BENCH_NATIVE_GET_DOUBLE(json["d"]);
+    value.flag = SC_BENCH_NATIVE_GET_BOOL(json["flag"]);
+    value.s = SC_BENCH_NATIVE_GET_STRING(json["s"]);
+    benchmark::DoNotOptimize(value);
+  }
+}
+
+SC_BENCH_REGISTER(SC_BENCH_NAME(AccessStructOurs));
+SC_BENCH_REGISTER(SC_BENCH_NAME(AccessStructNative));

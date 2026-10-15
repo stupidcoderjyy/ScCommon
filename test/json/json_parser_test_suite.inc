@@ -116,14 +116,14 @@ T TraitGet(const SC_JSON_TYPE& node) {
 }
 
 // 自定义类型 + 自定义提取器（特化 Extractor<JsonType, MyType>）
-struct SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUITE_NAME) {
+struct SC_JSON_CONCAT(InnerPoint_, SC_JSON_TEST_SUITE_NAME) {
   int x = 0;
   int y = 0;
 };
 
 template <>
-struct sc::json::Extractor<SC_JSON_TYPE, SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUITE_NAME)> {
-  using ValueType = SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUITE_NAME);
+struct sc::json::Extractor<SC_JSON_TYPE, SC_JSON_CONCAT(InnerPoint_, SC_JSON_TEST_SUITE_NAME)> {
+  using ValueType = SC_JSON_CONCAT(InnerPoint_, SC_JSON_TEST_SUITE_NAME);
 
   static bool Extract(const SC_JSON_TYPE& json, ValueType& out) {
     const SC_JSON_TYPE* x = JsonTraits<SC_JSON_TYPE>::TryGetChild(json, "x");
@@ -852,7 +852,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutMapValueMismatchReportsFullPath) {
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutCustomType) {
-  using Point = SC_JSON_CONCAT(Point_, SC_JSON_TEST_SUITE_NAME);
+  using Point = SC_JSON_CONCAT(InnerPoint_, SC_JSON_TEST_SUITE_NAME);
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
   JsonView view(json);
 
@@ -1620,4 +1620,98 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
 
   EXPECT_THROW(writer[""_path] = 1, std::runtime_error);
   EXPECT_THROW(writer["scalar.y"_path] = 1, std::runtime_error);
+}
+
+struct SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME) {
+  std::int64_t neg = 0;
+  double d = 0;
+  std::string s;
+};
+
+REGISTER_FIELDS(SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME), neg, d, s)
+
+TEST(SC_JSON_TEST_SUITE_NAME, GetTypeFillsStruct) {
+  using Reflected = SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME);
+  const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+  JsonView<SC_JSON_TYPE> view(json);
+
+  const auto value = view.GetType<Reflected>(""_path);
+  EXPECT_EQ(-7, value.neg);
+  EXPECT_DOUBLE_EQ(3.14, value.d);
+  EXPECT_EQ(std::string("hello"), value.s);
+
+  Reflected target;
+  view.PutType<Reflected>(""_path, target);
+  EXPECT_EQ(-7, target.neg);
+  EXPECT_EQ(std::string("hello"), target.s);
+
+  const auto partial = view.GetType<Reflected>("a"_path);
+  EXPECT_EQ(0, partial.neg);
+  EXPECT_DOUBLE_EQ(0.0, partial.d);
+  EXPECT_TRUE(partial.s.empty());
+}
+
+struct SC_JSON_CONCAT(NestedPoint_, SC_JSON_TEST_SUITE_NAME) {
+  int x = 0;
+  int y = 0;
+};
+
+struct SC_JSON_CONCAT(NestedBag_, SC_JSON_TEST_SUITE_NAME) {
+  SC_JSON_CONCAT(NestedPoint_, SC_JSON_TEST_SUITE_NAME) point;
+  double d = 0;
+  std::string s;
+};
+
+REGISTER_FIELDS(SC_JSON_CONCAT(NestedPoint_, SC_JSON_TEST_SUITE_NAME), x, y)
+REGISTER_FIELDS(SC_JSON_CONCAT(NestedBag_, SC_JSON_TEST_SUITE_NAME), point, d, s)
+
+TEST(SC_JSON_TEST_SUITE_NAME, GetTypeWithNestedStruct) {
+  using Bag = SC_JSON_CONCAT(NestedBag_, SC_JSON_TEST_SUITE_NAME);
+  const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+  JsonView<SC_JSON_TYPE> view(json);
+
+  const auto bag = view.GetType<Bag>(""_path);
+  EXPECT_EQ(10, bag.point.x);
+  EXPECT_EQ(20, bag.point.y);
+  EXPECT_DOUBLE_EQ(3.14, bag.d);
+  EXPECT_EQ(std::string("hello"), bag.s);
+
+  Bag target;
+  view.PutType<Bag>(""_path, target);
+  EXPECT_EQ(10, target.point.x);
+  EXPECT_EQ(20, target.point.y);
+
+  const auto point = view.GetType<SC_JSON_CONCAT(NestedPoint_, SC_JSON_TEST_SUITE_NAME)>(
+      "point"_path);
+  EXPECT_EQ(10, point.x);
+  EXPECT_EQ(20, point.y);
+}
+
+struct SC_JSON_CONCAT(Item_, SC_JSON_TEST_SUITE_NAME) {
+  std::int64_t id = 0;
+};
+
+struct SC_JSON_CONCAT(ContainerBag_, SC_JSON_TEST_SUITE_NAME) {
+  std::vector<std::int64_t> list;
+  std::map<std::string, int> point;
+  std::vector<SC_JSON_CONCAT(Item_, SC_JSON_TEST_SUITE_NAME)> obj_list;
+};
+
+REGISTER_FIELDS(SC_JSON_CONCAT(Item_, SC_JSON_TEST_SUITE_NAME), id)
+REGISTER_FIELDS(SC_JSON_CONCAT(ContainerBag_, SC_JSON_TEST_SUITE_NAME), list,
+                point, obj_list)
+
+TEST(SC_JSON_TEST_SUITE_NAME, GetTypeWithContainers) {
+  using Bag = SC_JSON_CONCAT(ContainerBag_, SC_JSON_TEST_SUITE_NAME);
+  const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+  JsonView<SC_JSON_TYPE> view(json);
+
+  const auto bag = view.GetType<Bag>(""_path);
+  EXPECT_EQ((std::vector<std::int64_t>{1, 2, 3}), bag.list);
+  ASSERT_EQ(2u, bag.point.size());
+  EXPECT_EQ(10, bag.point.at("x"));
+  EXPECT_EQ(20, bag.point.at("y"));
+  ASSERT_EQ(2u, bag.obj_list.size());
+  EXPECT_EQ(1, bag.obj_list[0].id);
+  EXPECT_EQ(2, bag.obj_list[1].id);
 }
