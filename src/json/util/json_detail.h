@@ -7,6 +7,7 @@
 
 #include <charconv>
 #include <cstddef>
+#include <format>
 #include <string>
 #include <string_view>
 
@@ -14,34 +15,6 @@
 #include "../json_traits.h"
 
 namespace sc::json::detail {
-
-// 单步解析：token 以 '[' 开头按数组下标处理，否则按对象 key 处理。
-// 供 JsonParser 与各 View 共用。
-template <typename Json>
-const Json* Step(const Json* node, std::string_view token) {
-  if (!node || token.empty()) {
-    return nullptr;
-  }
-  if (token.front() != '[') {
-    return JsonTraits<Json>::TryGetChild(*node, token);
-  }
-
-  if (token.size() < 2 || token.back() != ']') {
-    return nullptr;
-  }
-  const std::string_view digits = token.substr(1, token.size() - 2);
-  std::size_t index = 0;
-  if (auto [ptr, ec] =
-          std::from_chars(digits.data(), digits.data() + digits.size(), index);
-      ec != std::errc() || ptr != digits.data() + digits.size()) {
-    return nullptr;
-  }
-  if (!JsonTraits<Json>::IsArray(*node) ||
-      index >= JsonTraits<Json>::GetArraySize(*node)) {
-    return nullptr;
-  }
-  return &JsonTraits<Json>::GetArrayElement(*node, index);
-}
 
 inline void AppendNumber(std::string& out, std::size_t value) {
   char buf[24];
@@ -81,22 +54,58 @@ std::string PathString(const Path& path) {
   return out;
 }
 
-// 失败信息一次成串（预留容量 + 追加），避免多次临时字符串分配。
-template <PathLike Path>
-std::string ResolveErrorMessage(const Path& path, std::size_t actual,
-                                std::string_view token) {
-  std::string out;
-  out.reserve(64 + path.Size() * 8 + token.size());
-  out += "JsonParser: cannot resolve path '";
-  AppendPath(out, path);
-  out += "' at segment '";
-  out.append(token);
-  out += "' (resolved ";
-  AppendNumber(out, actual);
-  out += " of ";
-  AppendNumber(out, path.Size());
-  out += " segments)";
-  return out;
+//
+// Json路径解析
+//
+template <typename Json, bool kCreateOnMissing = false>
+const Json* Step(const Json* node, std::string_view token) {
+  if (!node || token.empty()) {
+    return nullptr;
+  }
+  if (token.front() != '[') {
+    return JsonTraits<Json>::TryGetChild(*node, token);
+  }
+
+  if (token.size() < 2 || token.back() != ']') {
+    return nullptr;
+  }
+  const std::string_view digits = token.substr(1, token.size() - 2);
+  std::size_t index = 0;
+  if (auto [ptr, ec] =
+          std::from_chars(digits.data(), digits.data() + digits.size(), index);
+      ec != std::errc() || ptr != digits.data() + digits.size()) {
+    return nullptr;
+  }
+  if (!JsonTraits<Json>::IsArray(*node) ||
+      index >= JsonTraits<Json>::GetArraySize(*node)) {
+    return nullptr;
+  }
+  return &JsonTraits<Json>::GetArrayElement(*node, index);
+}
+
+template <typename Json, PathLike Path, bool kCreateOnMissing = false>
+Json* Resolve(const Json* cur, const Path& path) {
+  Json* node = const_cast<Json*>(cur);
+  for (std::size_t i = 0; node != nullptr && i < path.Size(); ++i) {
+    node = const_cast<Json*>(Step<Json, kCreateOnMissing>(node, path[i]));
+  }
+  return node;
+}
+
+template <typename Json, PathLike Path, typename ExistencePolicy,
+          JsonErrorHandler ErrorHandler, bool kCreateOnMissing = false>
+Json* ResolveWithPolicy(const Json* cur, const Path& path,
+                        ErrorHandler& handler) {
+  constexpr auto required = std::is_same_v<ExistencePolicy, Required>;
+  constexpr auto create = required && kCreateOnMissing;
+  if (auto* res = detail::Resolve<Json, Path, create>(cur, path); res) {
+    return res;
+  }
+  if constexpr (required) {
+    handler.OnPathResolveError(
+        std::format("JsonParser: cannot resolve path '{}'", PathString(path)));
+  }
+  return nullptr;
 }
 
 }  // namespace sc::json::detail

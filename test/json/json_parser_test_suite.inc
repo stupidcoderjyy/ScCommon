@@ -22,7 +22,6 @@
 #include "json/json_view.hpp"
 #include "json/view/json_array_view.h"
 #include "json/view/json_object_view.h"
-#include "reflect/pfr.h"
 
 using namespace sc::json;
 
@@ -42,8 +41,8 @@ struct SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
   static inline std::vector<std::string> mismatches;
   static inline std::vector<std::string> parse_errors;
 
-  static void OnPathResolveError(const std::exception& e) {
-    resolve_errors.emplace_back(e.what());
+  static void OnPathResolveError(std::string_view msg) {
+    resolve_errors.emplace_back(msg);
   }
   static void OnTypeMismatch(std::string_view path) {
     mismatches.emplace_back(path);
@@ -77,9 +76,9 @@ struct SC_JSON_CONCAT(ContextErrorHandler_, SC_JSON_TEST_SUITE_NAME) {
       std::string request_id = {})
       : request_id_(std::move(request_id)) {}
 
-  void OnPathResolveError(const std::exception& e) const {
+  void OnPathResolveError(std::string_view msg) const {
     throw SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(
-        request_id_, e.what());
+        request_id_, std::string(msg));
   }
   void OnTypeMismatch(std::string_view path) const {
     throw SC_JSON_CONCAT(ContextException_, SC_JSON_TEST_SUITE_NAME)(

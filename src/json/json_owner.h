@@ -5,8 +5,8 @@
 #ifndef SCCOMMON_JSON_OWNER_H
 #define SCCOMMON_JSON_OWNER_H
 
-#include "util/json_error.h"
 #include "json_traits.h"
+#include "util/json_error.h"
 
 namespace sc::json {
 
@@ -19,9 +19,9 @@ struct OwnedJson {
 template <typename Json>
 using OwnedJsonT = OwnedJson<Json>::Type;
 
-template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
-class JsonOwnerStorage {
- public:
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+struct JsonOwnerStorage {
   JsonOwnerStorage() = default;
   JsonOwnerStorage(const JsonOwnerStorage&) noexcept = delete;
   JsonOwnerStorage& operator=(const JsonOwnerStorage&) noexcept = delete;
@@ -44,18 +44,18 @@ class JsonOwnerStorage {
   void MarkValid() { valid_ = true; }
 
   [[nodiscard]] std::string ToString() const {
-    return valid_ ? JsonTraits<Json>::ToString(ConstRef()) : std::string{};
+    return valid_ ? JsonTraits<Json>::ToString(json()) : std::string{};
   }
 
   void ToStream(std::ostream& os) const {
-    JsonTraits<Json>::ToStream(os, ConstRef());
+    JsonTraits<Json>::ToStream(os, json());
   }
 
-  [[nodiscard]] bool Valid() const noexcept { return valid_; }
-  Json& Ref() { return json_; }
-  const Json& ConstRef() const { return json_; }
-  ErrorHandler& err_handler() { return err_handler_; }
-  const ErrorHandler& err_handler() const { return err_handler_; }
+  [[nodiscard]] bool valid() const noexcept { return valid_; }
+  [[nodiscard]] Json& json() { return json_; }
+  [[nodiscard]] const Json& json() const { return json_; }
+  [[nodiscard]] ErrorHandler& err_handler() { return err_handler_; }
+  [[nodiscard]] const ErrorHandler& err_handler() const { return err_handler_; }
 
   explicit operator bool() const { return valid_; }
 
@@ -65,10 +65,12 @@ class JsonOwnerStorage {
 };
 
 // 主模板
-template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
-class JsonOwner : public JsonOwnerStorage<Json, ErrorHandler> {};
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
+struct JsonOwner : JsonOwnerStorage<Json, ErrorHandler> {};
 
-template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
 std::ostream& operator<<(std::ostream& os,
                          const JsonOwner<Json, ErrorHandler>& owner) {
   owner.ToStream(os);

@@ -9,5 +9,6 @@
 #include "view/json_array_view.h"
 #include "view/json_object_view.h"
 #include "json_owner.h"
+#include "json_writer.h"
 
 #endif  // SCCOMMON_JSON_VIEW_HPP

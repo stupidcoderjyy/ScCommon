@@ -172,7 +172,7 @@ struct JsonTraits<rapidjson::Value> {
   }
 };
 
-template <typename ErrorHandler>
+template <JsonErrorHandler ErrorHandler>
 class JsonParser<rapidjson::Value, ErrorHandler> {
  public:
   JsonParser() = default;
@@ -219,7 +219,7 @@ struct OwnedJson<rapidjson::Value> {
   using Type = rapidjson::Document;
 };
 
-template <typename ErrorHandler>
+template <JsonErrorHandler ErrorHandler>
 class JsonOwner<rapidjson::Value, ErrorHandler>
     : public JsonOwnerStorage<rapidjson::Value, ErrorHandler> {
  public:

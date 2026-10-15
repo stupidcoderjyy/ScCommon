@@ -15,7 +15,8 @@
 
 namespace sc::json {
 
-template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
 class JsonObjectView {
  public:
   JsonObjectView() noexcept = default;
@@ -70,7 +71,7 @@ class JsonObjectView {
   ErrorHandler* handler_ = nullptr;
 };
 
-template <typename Json, typename ErrorHandler>
+template <typename Json, JsonErrorHandler ErrorHandler>
 template <typename ExistencePolicy, typename Path>
   requires PathLike<Path>
 JsonObjectView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewObject(
@@ -81,7 +82,8 @@ JsonObjectView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewObject(
   if (!valid()) {
     return JsonObjectView<Json, ErrorHandler>{};
   }
-  const Json* node = this->template Find<ExistencePolicy>(path);
+  const Json* node = detail::ResolveWithPolicy<Json, Path, ExistencePolicy>(
+      json_, path, handler_);
   if (!node) {
     return JsonObjectView<Json, ErrorHandler>{};
   }

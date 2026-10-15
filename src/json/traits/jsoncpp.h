@@ -112,7 +112,7 @@ struct JsonTraits<Json::Value> {
   }
 };
 
-template <typename ErrorHandler>
+template <JsonErrorHandler ErrorHandler>
 class JsonParser<Json::Value, ErrorHandler> {
  public:
   JsonParser() = default;
@@ -155,7 +155,7 @@ class JsonParser<Json::Value, ErrorHandler> {
 
 // JsonOwner 的 JsonCpp 偏特化：只补三种构造，特殊成员函数继承自
 // JsonOwnerStorage
-template <typename ErrorHandler>
+template <JsonErrorHandler ErrorHandler>
 class JsonOwner<Json::Value, ErrorHandler>
     : public JsonOwnerStorage<Json::Value, ErrorHandler> {
  public:

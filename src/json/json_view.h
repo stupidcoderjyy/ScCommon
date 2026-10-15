@@ -28,13 +28,14 @@
 
 namespace sc::json {
 
-template <typename Json, typename ErrorHandler>
+template <typename Json, JsonErrorHandler ErrorHandler>
 class JsonArrayView;
 
-template <typename Json, typename ErrorHandler>
+template <typename Json, JsonErrorHandler ErrorHandler>
 class JsonObjectView;
 
-template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
 class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
                  public JsonAccessMixin<JsonView<Json, ErrorHandler>, Json> {
  public:
@@ -42,7 +43,7 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
   explicit JsonView(const Json& json, ErrorHandler handler = {}) noexcept
       : json_(&json), handler_(std::move(handler)) {}
   explicit JsonView(const JsonOwner<Json, ErrorHandler>& owner)
-      : json_(owner ? &owner.ConstRef() : nullptr), handler_(owner.err_handler()) {}
+      : json_(owner ? &owner.json() : nullptr), handler_(owner.err_handler()) {}
 
   // 禁止临时JsonOwner构造
   explicit JsonView(JsonOwner<Json, ErrorHandler>&& json) = delete;
@@ -61,7 +62,8 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
     if (!valid()) {
       return JsonView{};
     }
-    auto* node = Find<ExistencePolicy>(path);
+    const Json* node = detail::ResolveWithPolicy<Json, Path, ExistencePolicy>(
+        json_, path, handler_);
     return node ? JsonView{*node, handler_} : JsonView{};
   }
 
@@ -74,7 +76,6 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
   JsonObjectView<Json, ErrorHandler> ViewObject(const Path& path) const;
 
   [[nodiscard]] bool valid() const noexcept { return json_; }
-
   [[nodiscard]] const Json* node() const noexcept { return json_; }
 
   explicit operator bool() const noexcept { return valid(); }
@@ -85,29 +86,6 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, ErrorHandler>, Json>,
 
   [[nodiscard]] ErrorHandler& error_handler() const noexcept {
     return handler_;
-  }
-
-  // 从当前节点开始解析 path；Required 且解析失败时交给 OnPathResolveError。
-  template <typename ExistencePolicy, typename Path>
-    requires PathLike<Path>
-  const Json* Find(const Path& path) const {
-    auto* cur = json_;
-    std::size_t actual = 0;
-    for (std::size_t i = 0; cur && i < path.Size(); ++i) {
-      cur = detail::Step<Json>(cur, path[i]);
-      if (cur) {
-        ++actual;
-      }
-    }
-    if (!cur) {
-      if constexpr (std::is_same_v<ExistencePolicy, Required>) {
-        const std::string_view failed =
-            actual < path.Size() ? path[actual] : std::string_view{};
-        handler_.OnPathResolveError(std::runtime_error{
-            detail::ResolveErrorMessage(path, actual, failed)});
-      }
-    }
-    return cur;
   }
 
   const Json* json_{nullptr};

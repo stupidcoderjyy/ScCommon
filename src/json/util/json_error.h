@@ -5,6 +5,7 @@
 #ifndef SCCOMMON_JSON_ERROR_H
 #define SCCOMMON_JSON_ERROR_H
 
+#include <concepts>
 #include <exception>
 #include <stdexcept>
 #include <string>
@@ -13,8 +14,8 @@
 namespace sc::json {
 
 struct DefaultJsonErrorHandler {
-  static void OnPathResolveError(const std::exception& e) {
-    throw std::runtime_error(e.what());
+  static void OnPathResolveError(std::string_view msg) {
+    throw std::runtime_error(msg.data());
   }
   static void OnTypeMismatch(std::string_view path) {
     throw std::runtime_error("JsonParser: type mismatch at path '" +
@@ -26,6 +27,16 @@ struct DefaultJsonErrorHandler {
                              std::string(e.what()));
   }
 };
+
+template <typename T>
+concept JsonErrorHandler =
+    std::default_initializable<T> &&
+    requires(T& handler, std::string_view msg, std::exception& parse_error,
+             std::string_view path, std::string_view json) {
+      handler.OnPathResolveError(msg);
+      handler.OnTypeMismatch(path);
+      handler.OnJsonParseError(json, parse_error);
+    };
 
 struct Required {};
 

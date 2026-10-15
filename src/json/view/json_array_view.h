@@ -11,7 +11,8 @@
 
 namespace sc::json {
 
-template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
 class JsonArrayView {
  public:
   JsonArrayView() noexcept = default;
@@ -107,7 +108,7 @@ class JsonArrayView {
   ErrorHandler* handler_ = nullptr;
 };
 
-template <typename Json, typename ErrorHandler>
+template <typename Json, JsonErrorHandler ErrorHandler>
 template <typename ExistencePolicy, typename Path>
   requires PathLike<Path>
 JsonArrayView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewArray(
@@ -118,7 +119,8 @@ JsonArrayView<Json, ErrorHandler> JsonView<Json, ErrorHandler>::ViewArray(
   if (!valid()) {
     return {};
   }
-  const Json* node = this->template Find<ExistencePolicy>(path);
+  const Json* node = detail::ResolveWithPolicy<Json, Path, ExistencePolicy>(
+      json_, path, handler_);
   if (!node) {
     return {};
   }

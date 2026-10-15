@@ -52,7 +52,8 @@ struct JsonTraits {
 
 // 从字符串/输入流构造json，构造出json的所有权归JsonParser所有
 // 发生错误调用ErrorHandler::OnJsonParseError
-template <typename Json, typename ErrorHandler = DefaultJsonErrorHandler>
+template <typename Json,
+          JsonErrorHandler ErrorHandler = DefaultJsonErrorHandler>
 class JsonParser {
  public:
   JsonParser() = default;
