@@ -258,6 +258,11 @@ struct JsonOtherTraits<rapidjson::Value> {
   static MemberIterator MemberEnd(const Json& json) {
     return {.it = json.MemberEnd()};
   }
+
+  static Json Create() {
+    Json json(rapidjson::kObjectType);
+    return json;
+  }
 };
 
 template <>
@@ -269,6 +274,23 @@ struct JsonWriteTraits<rapidjson::Value> {
                         std::string_view name) noexcept {
     return AddValue(owner, parent, name, [](Json& node) { node.SetObject(); });
   }
+
+  template <JsonErrorHandler E>
+  static bool RemoveChild(JsonOwner<Json, E>&, Json& parent,
+                          std::string_view name) noexcept {
+    if (!parent.IsObject()) {
+      return false;
+    }
+    const Json key(rapidjson::StringRef(
+        name.data(), static_cast<rapidjson::SizeType>(name.size())));
+    const auto it = parent.FindMember(key);
+    if (it == parent.MemberEnd()) {
+      return false;
+    }
+    parent.RemoveMember(it);
+    return true;
+  }
+
   template <JsonErrorHandler E>
   static Json* AddInt(JsonOwner<Json, E>& owner, const Json& parent,
                       std::string_view name, int value) noexcept {
@@ -394,7 +416,7 @@ template <JsonErrorHandler E>
 struct JsonParseTraits<rapidjson::Value, E> {
   static void Parse(std::string_view text, rapidjson::Document& out,
                     E& handler) {
-    out.template Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(
+    out.Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(
         text.data(), text.size());
     if (out.HasParseError()) {
       std::runtime_error e("rapidjson parse error at offset " +
@@ -419,6 +441,10 @@ struct JsonParseTraits<rapidjson::Value, E> {
 template <JsonErrorHandler E>
 struct JsonOwner<rapidjson::Value, E> : JsonOwnerStorage<rapidjson::Value, E> {
   using JsonOwnerStorage<rapidjson::Value, E>::JsonOwnerStorage;
+
+  // Document 不能由 Value 构造，默认构造器显式建一个空对象文档
+  JsonOwner() : JsonOwnerStorage<rapidjson::Value, E>(
+                    rapidjson::Document(rapidjson::kObjectType)) {}
 
   rapidjson::Document::AllocatorType& GetAllocator() {
     return this->json_.GetAllocator();

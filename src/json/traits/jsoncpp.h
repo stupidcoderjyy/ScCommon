@@ -162,6 +162,10 @@ struct JsonOtherTraits<Json::Value> {
   static MemberIterator MemberEnd(const Json& json) {
     return {.it = json.end()};
   }
+
+  static ::Json::Value Create() {
+    return {::Json::objectValue};
+  }
 };
 
 template <>
@@ -183,6 +187,24 @@ struct JsonWriteTraits<Json::Value> {
       return &node[key];
     } catch (...) {
       return nullptr;
+    }
+  }
+
+  template <JsonErrorHandler E>
+  static bool RemoveChild(JsonOwner<::Json::Value, E>&, ::Json::Value& parent,
+                          std::string_view name) noexcept {
+    try {
+      if (!parent.isObject()) {
+        return false;
+      }
+      const std::string key(name);
+      if (!parent.isMember(key)) {
+        return false;
+      }
+      parent.removeMember(key);
+      return true;
+    } catch (...) {
+      return false;
     }
   }
 

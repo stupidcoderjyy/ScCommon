@@ -12,7 +12,7 @@ namespace sc::json {
 
 template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 struct JsonOwnerStorage {
-  JsonOwnerStorage() = default;
+  JsonOwnerStorage(): json_(JsonOtherTraits<Json>::Create()), valid_(true) {}
   explicit JsonOwnerStorage(OwnedJsonT<Json>&& json)
       : json_(std::move(json)), valid_(true) {}
   explicit JsonOwnerStorage(std::string_view text,

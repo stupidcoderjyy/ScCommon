@@ -58,6 +58,40 @@ class JsonWriteMixin {
     }
   }
 
+  template <AccessPolicy Policy = Optional, std::size_t N>
+  Self& Remove(const Parts<N>& path, E& handler = GetDefaultErrorHandler<E>()) {
+    OwnerType* owner = self().owner();
+    if (owner == nullptr) {
+      return self();
+    }
+    if constexpr (N == 0) {
+      // 空路径即根节点，无法删除
+      if constexpr (std::is_same_v<Policy, Required>) {
+        handler.OnPathResolveError(detail::PathString(path));
+      }
+      return self();
+    } else {
+      Json* parent = nullptr;
+      if constexpr (N == 1) {
+        parent = &owner->json();
+      } else {
+        const auto sub = path.template Sub<0, N - 1>();
+        parent =
+            detail::ResolveWithPolicy<Json, N - 1, Policy, E>(&owner->json(),
+                                                              sub, handler);
+      }
+      if (parent == nullptr) {
+        return self();
+      }
+      if (!JsonTraits<Json>::RemoveChild(*owner, *parent, path[N - 1])) {
+        if constexpr (std::is_same_v<Policy, Required>) {
+          handler.OnPathResolveError(detail::PathString(path));
+        }
+      }
+      return self();
+    }
+  }
+
   template <std::size_t N, AccessPolicy Policy = Optional>
   class Proxy {
    public:

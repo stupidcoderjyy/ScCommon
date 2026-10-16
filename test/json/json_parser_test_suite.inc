@@ -6,7 +6,6 @@
 #pragma once
 #include <gtest/gtest.h>
 
-#include <cstdint>
 #include <exception>
 #include <iterator>
 #include <map>
@@ -19,9 +18,7 @@
 #include <utility>
 #include <vector>
 
-#include "json/json_writer.h"
-#include "json/view/json_array_view.h"
-#include "json/view/json_object_view.h"
+#include "json/json.hpp"
 
 using namespace sc::json;
 
@@ -1637,6 +1634,61 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
   ASSERT_NE(nullptr, created);
   EXPECT_EQ(9, TraitGet<int>(
                    *JsonTraits<SC_JSON_TYPE>::TryGetChild(*created, "deep")));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriterRemoveByPath) {
+  JsonOwner<SC_JSON_TYPE> owner(
+      std::string_view(R"({"a":{"x":1,"y":2},"list":[1,2],"scalar":7})"));
+  JsonWriter writer(owner);
+
+  auto child = [&](std::string_view key) {
+    return JsonTraits<SC_JSON_TYPE>::TryGetChild(owner.json(), key);
+  };
+
+  // 深度 1：删除根下的成员
+  writer.Remove("scalar"_path);
+  EXPECT_EQ(nullptr, child("scalar"));
+
+  // 深度 2：删除嵌套成员，父节点与兄弟成员保留
+  writer.Remove("a.x"_path);
+  const SC_JSON_TYPE* a = child("a");
+  ASSERT_NE(nullptr, a);
+  EXPECT_EQ(nullptr, JsonTraits<SC_JSON_TYPE>::TryGetChild(*a, "x"));
+  EXPECT_NE(nullptr, JsonTraits<SC_JSON_TYPE>::TryGetChild(*a, "y"));
+
+  // 默认策略是 Optional：空路径、缺失的中间路径、不存在的成员都静默忽略
+  writer.Remove(""_path);
+  writer.Remove("no.such"_path);
+  writer.Remove("a.zz"_path);
+  EXPECT_EQ(nullptr, child("no"));
+  ASSERT_NE(nullptr, child("a"));
+
+  // 父节点不是对象（数组）同样静默忽略
+  writer.Remove("list.x"_path);
+  EXPECT_NE(nullptr, child("list"));
+
+  // 显式 Required：以上非法路径都上报
+  EXPECT_THROW((writer.Remove<Required>(""_path)), std::runtime_error);
+  EXPECT_THROW((writer.Remove<Required>("no.such"_path)), std::runtime_error);
+  EXPECT_THROW((writer.Remove<Required>("a.zz"_path)), std::runtime_error);
+  EXPECT_THROW((writer.Remove<Required>("list.x"_path)), std::runtime_error);
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, OwnerDefaultConstructedIsEmptyObject) {
+  JsonOwner<SC_JSON_TYPE> owner;
+  ASSERT_TRUE(owner.valid());
+
+  JsonView view(owner);
+  EXPECT_TRUE(view.IsObject());
+  EXPECT_EQ(JsonTraits<SC_JSON_TYPE>::MemberBegin(*view.node()),
+            JsonTraits<SC_JSON_TYPE>::MemberEnd(*view.node()));
+
+  // 空白文档可以直接作为写入目标
+  JsonWriter writer(owner);
+  writer["i"_path] = 42;
+  writer.Set<Required>("a.b"_path, 7);
+  EXPECT_EQ(42, view.View<Required>("i"_path).GetInt());
+  EXPECT_EQ(7, view.View<Required>("a.b"_path).GetInt());
 }
 
 struct SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME) {

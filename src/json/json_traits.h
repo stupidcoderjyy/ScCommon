@@ -73,6 +73,9 @@ struct JsonOtherTraits {
   using MemberIterator = void;
   static MemberIterator MemberBegin(const Json&) noexcept;
   static MemberIterator MemberEnd(const Json&) noexcept;
+
+  // 创建一个空的Json，等价于"{}"
+  static Json Create();
 };
 
 template <typename Json, JsonErrorHandler>
@@ -83,6 +86,10 @@ struct JsonWriteTraits {
   template <JsonErrorHandler E>
   static Json* AddChild(JsonOwner<Json, E>& owner, const Json& parent,
                         std::string_view name) noexcept;
+
+  template <JsonErrorHandler E>
+  static bool RemoveChild(JsonOwner<Json, E>& owner, Json& parent,
+                          std::string_view name) noexcept;
 
   template <JsonErrorHandler E>
   static Json* AddInt(JsonOwner<Json, E>& owner, const Json& parent,

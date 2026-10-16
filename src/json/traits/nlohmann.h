@@ -224,6 +224,8 @@ struct JsonOtherTraits<nlohmann::json> {
   static MemberIterator MemberEnd(const Json& json) {
     return {.it = json.end()};
   }
+
+  static Json Create() { return Json::object(); }
 };
 
 template <>
@@ -246,6 +248,25 @@ struct JsonWriteTraits<nlohmann::json> {
       return &node[key];
     } catch (...) {
       return nullptr;
+    }
+  }
+
+  template <JsonErrorHandler E>
+  static bool RemoveChild(JsonOwner<Json, E>&, Json& parent,
+                          std::string_view name) noexcept {
+    try {
+      if (!parent.is_object()) {
+        return false;
+      }
+      const std::string key(name);
+      if (auto it = parent.find(key); it == parent.end()) {
+        return false;
+      } else {
+        parent.erase(it);
+        return true;
+      }
+    } catch (...) {
+      return false;
     }
   }
 
