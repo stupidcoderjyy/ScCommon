@@ -97,6 +97,12 @@ class JsonAccessMixin {
                                                               handler);
     return out;
   }
+
+  // 将目标路径上的json解析为类型
+  // 支持: 1)已注册的可聚合结构体/类; 2) 线性容器; 3) 表容器; 4)
+  // 所有Json支持的基本类型
+  //      对于第1类，Policy会被传递进每一个字段
+  // 无论字段解析成功与否，总是会解析所有字段
   template <typename T, AccessPolicy Policy = Optional, std::size_t N>
   void PutType(const Parts<N>& path, T& t,
                E& handler = GetDefaultErrorHandler<E>()) {
@@ -218,13 +224,12 @@ class JsonAccessMixin {
   template <AccessPolicy Policy, typename T>
   bool LoadType(const Json& node, T& out, E& handler) {
     if constexpr (reflect::is_registered_v<T>) {
-      bool ok = true;
       std::apply(
           [&](const auto&... field) {
-            ((ok = ok && LoadField<Policy>(node, field, out, handler)), ...);
+            (LoadField<Policy>(node, field, out, handler), ...);
           },
           reflect::Descriptor<T>::fields());
-      return ok;
+      return true;
     } else if constexpr (detail::is_sequence_v<T>) {
       if (!JsonTraits<Json>::IsArray(node)) {
         return false;
@@ -266,19 +271,17 @@ class JsonAccessMixin {
   }
 
   template <AccessPolicy Policy, typename FieldT, typename T>
-  bool LoadField(const Json& node, const FieldT& field, T& out, E& handler) {
+  void LoadField(const Json& node, const FieldT& field, T& out, E& handler) {
     const Json* child = JsonTraits<Json>::TryGetChild(node, field.name);
     if (!child) {
       if constexpr (std::is_same_v<Policy, Required>) {
         handler.OnPathResolveError(field.name);
       }
-      return false;
+      return;
     }
     if (!LoadType<Policy>(*child, out.*field.member, handler)) {
       handler.OnTypeMismatch(field.name);
-      return false;
     }
-    return true;
   }
 };
 

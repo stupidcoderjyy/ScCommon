@@ -37,6 +37,9 @@ template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
                  public JsonAccessMixin<JsonView<Json, E>, Json, E> {
  public:
+  using JsonT = Json;
+  using ErrorHandlerT = E;
+
   JsonView() noexcept = default;
   explicit JsonView(const Json& json) noexcept : json_(&json) {}
   explicit JsonView(const JsonOwner<Json, E>& owner)

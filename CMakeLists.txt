@@ -26,7 +26,7 @@ endif()
 install(DIRECTORY
     ${CMAKE_CURRENT_SOURCE_DIR}/src/json
     ${CMAKE_CURRENT_SOURCE_DIR}/src/reflect
-    DESTINATION .
+    DESTINATION include
     FILES_MATCHING
     PATTERN "*.h"
     PATTERN "*.hpp"

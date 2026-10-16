@@ -15,8 +15,10 @@
 #include <utility>
 #include <vector>
 
-#include "json/json_view.hpp"
+#include "json/json_view.h"
 #include "json/json_writer.h"
+#include "json/view/json_array_view.h"
+#include "json/view/json_object_view.h"
 
 using namespace sc::json;
 
