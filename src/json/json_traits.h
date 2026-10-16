@@ -75,65 +75,53 @@ struct JsonOtherTraits {
   static MemberIterator MemberEnd(const Json&) noexcept;
 
   // 创建一个空的Json，等价于"{}"
-  static Json Create();
+  static OwnedJsonT<Json> Create();
 };
 
-template <typename Json, JsonErrorHandler>
-struct JsonOwner;
+template <typename Json>
+struct JsonOwnerStorage;
 
 template <typename Json>
 struct JsonWriteTraits {
-  template <JsonErrorHandler E>
-  static Json* AddChild(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddChild(JsonOwnerStorage<Json>& owner, const Json& parent,
                         std::string_view name) noexcept;
 
-  template <JsonErrorHandler E>
-  static bool RemoveChild(JsonOwner<Json, E>& owner, Json& parent,
+  static bool RemoveChild(JsonOwnerStorage<Json>& owner, Json& parent,
                           std::string_view name) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddInt(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddInt(JsonOwnerStorage<Json>& owner, const Json& parent,
                       std::string_view name, int value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddUint(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddUint(JsonOwnerStorage<Json>& owner, const Json& parent,
                        std::string_view name, unsigned int value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddInt64(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddInt64(JsonOwnerStorage<Json>& owner, const Json& parent,
                         std::string_view name, std::int64_t value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddUint64(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddUint64(JsonOwnerStorage<Json>& owner, const Json& parent,
                          std::string_view name, std::uint64_t value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddDouble(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddDouble(JsonOwnerStorage<Json>& owner, const Json& parent,
                          std::string_view name, double value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddBool(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddBool(JsonOwnerStorage<Json>& owner, const Json& parent,
                        std::string_view name, bool value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddNull(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddNull(JsonOwnerStorage<Json>& owner, const Json& parent,
                        std::string_view name) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddString(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddString(JsonOwnerStorage<Json>& owner, const Json& parent,
                          std::string_view name,
                          std::string_view value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AddList(JsonOwner<Json, E>& owner, const Json& parent,
+  static Json* AddList(JsonOwnerStorage<Json>& owner, const Json& parent,
                        std::string_view name) noexcept;
 
-  template <JsonErrorHandler E, typename T>
-  static Json* Append(JsonOwner<Json, E>& owner, Json& array,
+  template <typename T>
+  static Json* Append(JsonOwnerStorage<Json>& owner, Json& array,
                       const T& value) noexcept;
 
-  template <JsonErrorHandler E>
-  static Json* AppendObject(JsonOwner<Json, E>& owner, Json& array) noexcept;
+  static Json* AppendObject(JsonOwnerStorage<Json>& owner, Json& array) noexcept;
 };
 
 template <typename Json>

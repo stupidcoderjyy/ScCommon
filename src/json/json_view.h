@@ -42,11 +42,13 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
 
   JsonView() noexcept = default;
   explicit JsonView(const Json& json) noexcept : json_(&json) {}
-  explicit JsonView(const JsonOwner<Json, E>& owner)
+  template <JsonErrorHandler OwnerE>
+  explicit JsonView(const JsonOwner<Json, OwnerE>& owner)
       : json_(owner ? &owner.json() : nullptr) {}
 
   // 禁止临时JsonOwner构造
-  explicit JsonView(JsonOwner<Json, E>&& json) = delete;
+  template <JsonErrorHandler OwnerE>
+  explicit JsonView(JsonOwner<Json, OwnerE>&& owner) = delete;
 
   JsonView(const JsonView&) noexcept = default;
   JsonView(JsonView&&) noexcept = default;

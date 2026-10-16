@@ -1584,7 +1584,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriteAddString) {
 
 TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
   JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({"a":{},"scalar":7})"));
-  JsonWriter writer(owner);
+  JsonWriter<SC_JSON_TYPE> writer(owner);
 
   auto child = [&](std::string_view key) {
     return JsonTraits<SC_JSON_TYPE>::TryGetChild(owner.json(), key);
@@ -1626,10 +1626,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
   EXPECT_EQ(7, TraitGet<int>(*child("scalar")));
 
   // 显式 Required：空路径/父节点非对象上报错，缺失的中间节点自动建链
-  EXPECT_THROW((writer.Set<Required>(""_path, 1)), std::runtime_error);
-  EXPECT_THROW((writer.Set<Required>("scalar.y"_path, 1)), std::runtime_error);
+  EXPECT_THROW((writer.Set<int, Required>(""_path, 1)), std::runtime_error);
+  EXPECT_THROW((writer.Set<int, Required>("scalar.y"_path, 1)),
+               std::runtime_error);
 
-  writer.Set<Required>("new.deep"_path, 9);
+  writer.Set<int, Required>("new.deep"_path, 9);
   const SC_JSON_TYPE* created = child("new");
   ASSERT_NE(nullptr, created);
   EXPECT_EQ(9, TraitGet<int>(
@@ -1686,9 +1687,29 @@ TEST(SC_JSON_TEST_SUITE_NAME, OwnerDefaultConstructedIsEmptyObject) {
   // 空白文档可以直接作为写入目标
   JsonWriter writer(owner);
   writer["i"_path] = 42;
-  writer.Set<Required>("a.b"_path, 7);
+  writer.Set<int, Required>("a.b"_path, 7);
   EXPECT_EQ(42, view.View<Required>("i"_path).GetInt());
   EXPECT_EQ(7, view.View<Required>("a.b"_path).GetInt());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, OwnerViewWriterUseIndependentErrorHandlers) {
+  using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
+  ErrorHandler handler;
+  JsonOwner<SC_JSON_TYPE, ErrorHandler> owner(
+      std::string_view(R"({"a":{"b":42}})"), handler);
+
+  // 自定义 handler 的 owner 可以喂给默认 handler 的 view / writer
+  JsonView view(owner);
+  EXPECT_EQ(42, view.View<Required>("a.b"_path).GetInt());
+
+  JsonWriter<SC_JSON_TYPE> writer(owner);
+  writer["i"_path] = 7;
+  EXPECT_EQ(7, view.View<Required>("i"_path).GetInt());
+
+  // 反之亦然：默认 handler 的 owner 可以喂给自定义 handler 的 view
+  JsonOwner<SC_JSON_TYPE> plain(std::string_view(R"({"a":{"b":42}})"));
+  JsonView<SC_JSON_TYPE, ErrorHandler> custom(plain);
+  EXPECT_EQ(42, custom.View<Required>("a.b"_path, handler).GetInt());
 }
 
 struct SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME) {

@@ -56,8 +56,8 @@ E& GetDefaultErrorHandler() {
   } else {
     static_assert(!std::is_same_v<E, E>,
                   "sc::json: custom error handler must be passed explicitly");
+    throw;
   }
-  return kDefaultErrorHandler;
 }
 
 struct Required {};

@@ -17,9 +17,10 @@ template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonWriter : public JsonWriteMixin<JsonWriter<Json, E>, Json, E> {
  public:
   using Self = JsonWriter;
-  using OwnerType = JsonOwner<Json, E>;
+  using OwnerType = JsonOwnerStorage<Json>;
 
-  explicit JsonWriter(OwnerType& owner)
+  template <JsonErrorHandler OwnerE>
+  explicit JsonWriter(JsonOwner<Json, OwnerE>& owner)
       : owner_(owner.valid() ? &owner : nullptr) {}
   JsonWriter() = delete;
 

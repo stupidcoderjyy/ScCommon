@@ -232,8 +232,7 @@ template <>
 struct JsonWriteTraits<nlohmann::json> {
   using Json = nlohmann::json;
 
-  template <JsonErrorHandler E>
-  static Json* AddChild(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddChild(JsonOwnerStorage<Json>&, const Json& parent,
                         std::string_view name) noexcept {
     try {
       auto& node = const_cast<Json&>(parent);
@@ -251,8 +250,7 @@ struct JsonWriteTraits<nlohmann::json> {
     }
   }
 
-  template <JsonErrorHandler E>
-  static bool RemoveChild(JsonOwner<Json, E>&, Json& parent,
+  static bool RemoveChild(JsonOwnerStorage<Json>&, Json& parent,
                           std::string_view name) noexcept {
     try {
       if (!parent.is_object()) {
@@ -270,56 +268,47 @@ struct JsonWriteTraits<nlohmann::json> {
     }
   }
 
-  template <JsonErrorHandler E>
-  static Json* AddInt(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddInt(JsonOwnerStorage<Json>&, const Json& parent,
                       std::string_view name, int value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler E>
-  static Json* AddUint(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddUint(JsonOwnerStorage<Json>&, const Json& parent,
                        std::string_view name, unsigned int value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler E>
-  static Json* AddInt64(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddInt64(JsonOwnerStorage<Json>&, const Json& parent,
                         std::string_view name, std::int64_t value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler E>
-  static Json* AddUint64(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddUint64(JsonOwnerStorage<Json>&, const Json& parent,
                          std::string_view name, std::uint64_t value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler E>
-  static Json* AddDouble(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddDouble(JsonOwnerStorage<Json>&, const Json& parent,
                          std::string_view name, double value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler E>
-  static Json* AddBool(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddBool(JsonOwnerStorage<Json>&, const Json& parent,
                        std::string_view name, bool value) noexcept {
     return SetAt(parent, name, value);
   }
-  template <JsonErrorHandler E>
-  static Json* AddNull(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddNull(JsonOwnerStorage<Json>&, const Json& parent,
                        std::string_view name) noexcept {
     return SetAt(parent, name, nullptr);
   }
-  template <JsonErrorHandler E>
-  static Json* AddString(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddString(JsonOwnerStorage<Json>&, const Json& parent,
                          std::string_view name,
                          std::string_view value) noexcept {
     return SetAt(parent, name, std::string(value));
   }
 
-  template <JsonErrorHandler E>
-  static Json* AddList(JsonOwner<Json, E>&, const Json& parent,
+  static Json* AddList(JsonOwnerStorage<Json>&, const Json& parent,
                        std::string_view name) noexcept {
     return SetAt(parent, name, Json::array());
   }
 
-  template <JsonErrorHandler E, typename T>
-  static Json* Append(JsonOwner<Json, E>&, Json& array,
+  template <typename T>
+  static Json* Append(JsonOwnerStorage<Json>&, Json& array,
                       const T& value) noexcept {
     try {
       if constexpr (std::is_same_v<T, int> || std::is_same_v<T, unsigned int> ||
@@ -336,8 +325,7 @@ struct JsonWriteTraits<nlohmann::json> {
     }
   }
 
-  template <JsonErrorHandler E>
-  static Json* AppendObject(JsonOwner<Json, E>&, Json& array) noexcept {
+  static Json* AppendObject(JsonOwnerStorage<Json>&, Json& array) noexcept {
     try {
       array.push_back(Json::object());
       return &array.back();
@@ -386,11 +374,6 @@ struct JsonParseTraits<nlohmann::json, E> {
       throw;
     }
   }
-};
-
-template <JsonErrorHandler E>
-struct JsonOwner<nlohmann::json, E> : JsonOwnerStorage<nlohmann::json, E> {
-  using JsonOwnerStorage<nlohmann::json, E>::JsonOwnerStorage;
 };
 
 }  // namespace sc::json

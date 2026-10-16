@@ -10,18 +10,20 @@
 
 namespace sc::json {
 
-template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
+template <typename Json>
 struct JsonOwnerStorage {
   JsonOwnerStorage(): json_(JsonOtherTraits<Json>::Create()), valid_(true) {}
   explicit JsonOwnerStorage(OwnedJsonT<Json>&& json)
       : json_(std::move(json)), valid_(true) {}
+  template <JsonErrorHandler E>
   explicit JsonOwnerStorage(std::string_view text,
-                            E& handler = GetDefaultErrorHandler<E>()) {
+                            E& handler) {
     JsonParseTraits<Json, E>::Parse(text, json_, handler);
     valid_ = true;
   }
+  template <JsonErrorHandler E>
   explicit JsonOwnerStorage(std::istream& is,
-                            E& handler = GetDefaultErrorHandler<E>()) {
+                            E& handler) {
     JsonParseTraits<Json, E>::Parse(is, json_, handler);
     valid_ = true;
   }
@@ -51,19 +53,26 @@ struct JsonOwnerStorage {
   }
 
   [[nodiscard]] bool valid() const noexcept { return valid_; }
-  [[nodiscard]] Json& json() { return json_; }
-  [[nodiscard]] const Json& json() const { return json_; }
+  [[nodiscard]] auto& json() { return json_; }
+  [[nodiscard]] const auto& json() const { return json_; }
+  [[nodiscard]] auto& GetAllocator() noexcept { return json_.GetAllocator(); }
 
   explicit operator bool() const { return valid_; }
 
+private:
   OwnedJsonT<Json> json_;
   bool valid_ = false;
 };
 
 // 主模板
 template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
-struct JsonOwner : JsonOwnerStorage<Json, E> {
-  using JsonOwnerStorage<Json, E>::JsonOwnerStorage;
+struct JsonOwner : JsonOwnerStorage<Json> {
+  using JsonOwnerStorage<Json>::JsonOwnerStorage;
+
+  explicit JsonOwner(std::string_view text)
+      : JsonOwnerStorage<Json>(text, GetDefaultErrorHandler<E>()) {}
+  explicit JsonOwner(std::istream& is)
+      : JsonOwnerStorage<Json>(is, GetDefaultErrorHandler<E>()) {}
 };
 
 template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>

@@ -103,8 +103,7 @@ struct Extractor {
 
 template <typename Json, typename T>
 struct Injector {
-  template <JsonErrorHandler E>
-  static bool Inject(JsonOwner<Json, E>& owner, const Json& parent,
+  static bool Inject(JsonOwnerStorage<Json>& owner, const Json& parent,
                      std::string_view name, const T& val) {
     if constexpr (std::is_same_v<T, int>) {
       return JsonTraits<Json>::AddInt(owner, parent, name, val);

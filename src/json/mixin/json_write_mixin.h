@@ -23,9 +23,9 @@ template <typename Derived, typename Json, JsonErrorHandler E>
 class JsonWriteMixin {
  public:
   using Self = Derived;
-  using OwnerType = JsonOwner<Json, E>;
+  using OwnerType = JsonOwnerStorage<Json>;
 
-  template <AccessPolicy Policy = Optional, std::size_t N, typename T>
+  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
   Self& Set(const Parts<N>& path, const T& value,
             E& handler = GetDefaultErrorHandler<E>()) {
     OwnerType* owner = self().owner();
@@ -99,7 +99,7 @@ class JsonWriteMixin {
 
     template <typename T>
     Proxy& operator=(const T& value) {
-      writer_->template Set<Policy>(path_, value);
+      writer_->template Set<T, Policy>(path_, value);
       return *this;
     }
 
