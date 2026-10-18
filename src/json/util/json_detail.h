@@ -7,11 +7,9 @@
 
 #include <charconv>
 #include <cstddef>
-#include <format>
 #include <string>
 #include <string_view>
 
-#include "../json_path.h"
 #include "../json_traits.h"
 
 namespace sc::json::detail {
@@ -96,8 +94,8 @@ Json* Resolve(const Json* cur, const Parts<N>& path,
               JsonOwnerStorage<Json>* owner = nullptr) {
   Json* node = const_cast<Json*>(cur);
   for (std::size_t i = 0; node != nullptr && i < path.Size(); ++i) {
-    node = const_cast<Json*>(
-        Step<Json, kCreateOnMissing>(node, path[i], owner));
+    node =
+        const_cast<Json*>(Step<Json, kCreateOnMissing>(node, path[i], owner));
   }
   return node;
 }

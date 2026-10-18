@@ -5,10 +5,6 @@
 #ifndef SCCOMMON_JSON_VIEW_H
 #define SCCOMMON_JSON_VIEW_H
 
-#include <type_traits>
-#include <utility>
-
-#include "json_path.h"
 #include "mixin/json_access_mixin.h"
 #include "mixin/json_traits_mixin.h"
 #include "util/json_detail.h"
@@ -41,14 +37,18 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
   using ErrorHandlerT = E;
 
   JsonView() noexcept = default;
-  explicit JsonView(const Json& json) noexcept : json_(&json) {}
+  explicit JsonView(const Json& json,
+                    E& handler = GetDefaultErrorHandler<E>()) noexcept
+      : json_(&json), handler_(&handler) {}
   template <JsonErrorHandler OwnerE>
-  explicit JsonView(const JsonOwner<Json, OwnerE>& owner)
-      : json_(owner ? &owner.json() : nullptr) {}
+  explicit JsonView(const JsonOwner<Json, OwnerE>& owner,
+                    E& handler = GetDefaultErrorHandler<E>())
+      : json_(owner ? &owner.json() : nullptr), handler_(&handler) {}
 
   // 禁止临时JsonOwner构造
   template <JsonErrorHandler OwnerE>
-  explicit JsonView(JsonOwner<Json, OwnerE>&& owner) = delete;
+  explicit JsonView(JsonOwner<Json, OwnerE>&& owner,
+                    E& handler = GetDefaultErrorHandler<E>()) = delete;
 
   JsonView(const JsonView&) noexcept = default;
   JsonView(JsonView&&) noexcept = default;
@@ -56,23 +56,20 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
   JsonView& operator=(JsonView&&) noexcept = default;
 
   template <AccessPolicy Policy = Optional, std::size_t N>
-  JsonView View(const Parts<N>& path,
-                E& handler = GetDefaultErrorHandler<E>()) const {
+  JsonView View(const Parts<N>& path) const {
     if (!valid()) {
       return JsonView{};
     }
-    const Json* node =
-        detail::ResolveWithPolicy<Json, N, Policy>(json_, path, handler);
-    return node ? JsonView{*node} : JsonView{};
+    const Json* node = detail::ResolveWithPolicy<Json, N, Policy>(
+        json_, path, error_handler());
+    return node ? JsonView{*node, error_handler()} : JsonView{};
   }
 
   template <AccessPolicy Policy = Optional, std::size_t N>
-  JsonArrayView<Json, E> ViewArray(
-      const Parts<N>& path, E& handler = GetDefaultErrorHandler<E>()) const;
+  JsonArrayView<Json, E> ViewArray(const Parts<N>& path) const;
 
   template <AccessPolicy Policy = Optional, std::size_t N>
-  JsonObjectView<Json, E> ViewObject(
-      const Parts<N>& path, E& handler = GetDefaultErrorHandler<E>()) const;
+  JsonObjectView<Json, E> ViewObject(const Parts<N>& path) const;
 
   [[nodiscard]] bool valid() const noexcept { return json_; }
   [[nodiscard]] const Json* node() const noexcept { return json_; }
@@ -83,7 +80,10 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
   friend class JsonTraitsMixin<JsonView, Json>;
   friend class JsonAccessMixin<JsonView, Json, E>;
 
+  [[nodiscard]] E& error_handler() const noexcept { return *handler_; }
+
   const Json* json_{nullptr};
+  E* handler_{nullptr};
 };
 
 }  // namespace sc::json

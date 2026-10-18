@@ -15,8 +15,11 @@ template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonArrayView {
  public:
   JsonArrayView() noexcept = default;
-  explicit JsonArrayView(const Json& array) noexcept
-      : array_(&array), size_(JsonTraits<Json>::GetArraySize(array)) {}
+  explicit JsonArrayView(const Json& array,
+                         E& handler = GetDefaultErrorHandler<E>()) noexcept
+      : array_(&array),
+        size_(JsonTraits<Json>::GetArraySize(array)),
+        handler_(&handler) {}
 
   struct iterator {
     using difference_type = std::ptrdiff_t;
@@ -27,7 +30,8 @@ class JsonArrayView {
     using iterator_category = std::random_access_iterator_tag;
 
     value_type operator*() const {
-      return value_type{JsonTraits<Json>::GetArrayElement(*array_, index_)};
+      return value_type{JsonTraits<Json>::GetArrayElement(*array_, index_),
+                        *handler_};
     }
     [[nodiscard]] detail::ArrowProxy<value_type> operator->() const {
       return {operator*()};
@@ -90,10 +94,11 @@ class JsonArrayView {
 
     const Json* array_ = nullptr;
     std::size_t index_ = 0;
+    E* handler_ = nullptr;
   };
 
-  [[nodiscard]] iterator begin() const { return {array_, 0}; }
-  [[nodiscard]] iterator end() const { return {array_, size_}; }
+  [[nodiscard]] iterator begin() const { return {array_, 0, handler_}; }
+  [[nodiscard]] iterator end() const { return {array_, size_, handler_}; }
   [[nodiscard]] std::size_t size() const noexcept { return size_; }
   [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
   [[nodiscard]] const Json* node() const noexcept { return array_; }
@@ -101,27 +106,28 @@ class JsonArrayView {
  private:
   const Json* array_ = nullptr;
   std::size_t size_ = 0;  // 缓存，使 end()/size() 均 O(1)
+  E* handler_ = nullptr;
 };
 
 template <typename Json, JsonErrorHandler E>
 template <AccessPolicy Policy, std::size_t N>
-JsonArrayView<Json, E> JsonView<Json, E>::ViewArray(const Parts<N>& path,
-                                                    E& handler) const {
+JsonArrayView<Json, E> JsonView<Json, E>::ViewArray(
+    const Parts<N>& path) const {
   if (!valid()) {
     return {};
   }
   const Json* node =
-      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, handler);
+      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, error_handler());
   if (!node) {
     return {};
   }
   if (!JsonTraits<Json>::IsArray(*node)) {
     if constexpr (std::is_same_v<Policy, Required>) {
-      handler.OnTypeMismatch(detail::PathString(path));
+      error_handler().OnTypeMismatch(detail::PathString(path));
     }
     return {};
   }
-  return JsonArrayView<Json, E>(*node);
+  return JsonArrayView<Json, E>(*node, error_handler());
 }
 
 }  // namespace sc::json

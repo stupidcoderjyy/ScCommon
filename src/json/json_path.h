@@ -6,11 +6,8 @@
 #define SCCOMMON_JSON_PATH_H
 
 #include <algorithm>
-#include <concepts>
 #include <cstddef>
-#include <string>
 #include <string_view>
-#include <vector>
 
 #include "common/template_string.h"
 #include "util/json_path_util.h"

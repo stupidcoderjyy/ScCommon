@@ -5,9 +5,6 @@
 #ifndef SCCOMMON_JSON_WRITER_H
 #define SCCOMMON_JSON_WRITER_H
 
-#include <optional>
-#include <utility>
-
 #include "json_owner.h"
 #include "mixin/json_write_mixin.h"
 
@@ -20,8 +17,9 @@ class JsonWriter : public JsonWriteMixin<JsonWriter<Json, E>, Json, E> {
   using OwnerType = JsonOwnerStorage<Json>;
 
   template <JsonErrorHandler OwnerE>
-  explicit JsonWriter(JsonOwner<Json, OwnerE>& owner)
-      : owner_(owner.valid() ? &owner : nullptr) {}
+  explicit JsonWriter(JsonOwner<Json, OwnerE>& owner,
+                      E& handler = GetDefaultErrorHandler<E>())
+      : owner_(owner.valid() ? &owner : nullptr), handler_(&handler) {}
   JsonWriter() = delete;
 
   [[nodiscard]] const Json* node() const noexcept {
@@ -29,9 +27,11 @@ class JsonWriter : public JsonWriteMixin<JsonWriter<Json, E>, Json, E> {
   }
 
   [[nodiscard]] OwnerType* owner() noexcept { return owner_; }
+  [[nodiscard]] E& error_handler() const noexcept { return *handler_; }
 
  private:
   OwnerType* owner_;
+  E* handler_{nullptr};
 };
 
 }  // namespace sc::json

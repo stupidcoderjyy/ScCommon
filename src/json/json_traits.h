@@ -121,7 +121,8 @@ struct JsonWriteTraits {
   static Json* Append(JsonOwnerStorage<Json>& owner, Json& array,
                       const T& value) noexcept;
 
-  static Json* AppendObject(JsonOwnerStorage<Json>& owner, Json& array) noexcept;
+  static Json* AppendObject(JsonOwnerStorage<Json>& owner,
+                            Json& array) noexcept;
 };
 
 template <typename Json>

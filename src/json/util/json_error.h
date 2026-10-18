@@ -6,7 +6,6 @@
 #define SCCOMMON_JSON_ERROR_H
 
 #include <concepts>
-#include <exception>
 #include <stdexcept>
 #include <string>
 #include <string_view>

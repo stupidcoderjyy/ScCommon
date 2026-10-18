@@ -14,7 +14,6 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
-#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -404,8 +403,8 @@ template <JsonErrorHandler E>
 struct JsonParseTraits<rapidjson::Value, E> {
   static void Parse(std::string_view text, rapidjson::Document& out,
                     E& handler) {
-    out.Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(
-        text.data(), text.size());
+    out.Parse<rapidjson::kParseDefaultFlags, rapidjson::UTF8<>>(text.data(),
+                                                                text.size());
     if (out.HasParseError()) {
       std::runtime_error e("rapidjson parse error at offset " +
                            std::to_string(out.GetErrorOffset()));

@@ -19,7 +19,9 @@ template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonObjectView {
  public:
   JsonObjectView() noexcept = default;
-  explicit JsonObjectView(const Json& obj) noexcept : obj_(&obj) {}
+  explicit JsonObjectView(const Json& obj,
+                          E& handler = GetDefaultErrorHandler<E>()) noexcept
+      : obj_(&obj), handler_(&handler) {}
 
   struct iterator {
     using difference_type = std::ptrdiff_t;
@@ -31,7 +33,7 @@ class JsonObjectView {
 
     value_type operator*() const {
       const auto member = *it;
-      return {member.first, JsonView<Json, E>(*member.second)};
+      return {member.first, JsonView<Json, E>(*member.second, *handler_)};
     }
     [[nodiscard]] detail::ArrowProxy<value_type> operator->() const {
       return {operator*()};
@@ -49,41 +51,45 @@ class JsonObjectView {
     bool operator==(const iterator& other) const { return it == other.it; }
 
     JsonTraits<Json>::MemberIterator it{};
+    E* handler_ = nullptr;
   };
 
   iterator begin() const {
-    return obj_ ? iterator{JsonTraits<Json>::MemberBegin(*obj_)} : iterator{};
+    return obj_ ? iterator{JsonTraits<Json>::MemberBegin(*obj_), handler_}
+                : iterator{};
   }
 
   iterator end() const {
-    return obj_ ? iterator{JsonTraits<Json>::MemberEnd(*obj_)} : iterator{};
+    return obj_ ? iterator{JsonTraits<Json>::MemberEnd(*obj_), handler_}
+                : iterator{};
   }
 
   [[nodiscard]] const Json* node() const noexcept { return obj_; }
 
  private:
   const Json* obj_ = nullptr;
+  E* handler_ = nullptr;
 };
 
 template <typename Json, JsonErrorHandler E>
 template <AccessPolicy Policy, std::size_t N>
-JsonObjectView<Json, E> JsonView<Json, E>::ViewObject(const Parts<N>& path,
-                                                      E& handler) const {
+JsonObjectView<Json, E> JsonView<Json, E>::ViewObject(
+    const Parts<N>& path) const {
   if (!valid()) {
     return JsonObjectView<Json, E>{};
   }
   const Json* node =
-      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, handler);
+      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, error_handler());
   if (!node) {
     return JsonObjectView<Json, E>{};
   }
   if (!JsonTraits<Json>::IsObject(*node)) {
     if constexpr (std::is_same_v<Policy, Required>) {
-      handler.OnTypeMismatch(detail::PathString(path));
+      error_handler().OnTypeMismatch(detail::PathString(path));
     }
     return JsonObjectView<Json, E>{};
   }
-  return JsonObjectView<Json, E>(*node);
+  return JsonObjectView<Json, E>(*node, error_handler());
 }
 
 }  // namespace sc::json

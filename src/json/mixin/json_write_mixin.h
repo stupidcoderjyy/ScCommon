@@ -12,7 +12,6 @@
 
 #include "../../reflect/get_fields.h"
 #include "../json_owner.h"
-#include "../json_path.h"
 #include "../json_traits.h"
 #include "../util/json_detail.h"
 #include "../util/json_read_write.h"
@@ -26,15 +25,14 @@ class JsonWriteMixin {
   using OwnerType = JsonOwnerStorage<Json>;
 
   template <typename T, AccessPolicy Policy = Optional, std::size_t N>
-  Self& Set(const Parts<N>& path, const T& value,
-            E& handler = GetDefaultErrorHandler<E>()) {
+  Self& Set(const Parts<N>& path, const T& value) {
     OwnerType* owner = self().owner();
     if (owner == nullptr) {
       return self();
     }
     if constexpr (N == 0) {
       if constexpr (std::is_same_v<Policy, Required>) {
-        handler.OnPathResolveError(detail::PathString(path));
+        self().error_handler().OnPathResolveError(detail::PathString(path));
       }
       return self();
     } else {
@@ -44,14 +42,14 @@ class JsonWriteMixin {
       } else {
         const auto sub = path.template Sub<0, N - 1>();
         parent = detail::ResolveWithPolicy<Json, N - 1, Policy, E, true>(
-            &owner->json(), sub, handler, owner);
+            &owner->json(), sub, self().error_handler(), owner);
       }
       if (parent == nullptr) {
         return self();
       }
       if (!WriteValue<Policy>(*parent, path[N - 1], value)) {
         if constexpr (std::is_same_v<Policy, Required>) {
-          handler.OnTypeMismatch(detail::PathString(path));
+          self().error_handler().OnTypeMismatch(detail::PathString(path));
         }
       }
       return self();
@@ -59,7 +57,7 @@ class JsonWriteMixin {
   }
 
   template <AccessPolicy Policy = Optional, std::size_t N>
-  Self& Remove(const Parts<N>& path, E& handler = GetDefaultErrorHandler<E>()) {
+  Self& Remove(const Parts<N>& path) {
     OwnerType* owner = self().owner();
     if (owner == nullptr) {
       return self();
@@ -67,7 +65,7 @@ class JsonWriteMixin {
     if constexpr (N == 0) {
       // 空路径即根节点，无法删除
       if constexpr (std::is_same_v<Policy, Required>) {
-        handler.OnPathResolveError(detail::PathString(path));
+        self().error_handler().OnPathResolveError(detail::PathString(path));
       }
       return self();
     } else {
@@ -76,16 +74,15 @@ class JsonWriteMixin {
         parent = &owner->json();
       } else {
         const auto sub = path.template Sub<0, N - 1>();
-        parent =
-            detail::ResolveWithPolicy<Json, N - 1, Policy, E>(&owner->json(),
-                                                              sub, handler);
+        parent = detail::ResolveWithPolicy<Json, N - 1, Policy, E>(
+            &owner->json(), sub, self().error_handler());
       }
       if (parent == nullptr) {
         return self();
       }
       if (!JsonTraits<Json>::RemoveChild(*owner, *parent, path[N - 1])) {
         if constexpr (std::is_same_v<Policy, Required>) {
-          handler.OnPathResolveError(detail::PathString(path));
+          self().error_handler().OnPathResolveError(detail::PathString(path));
         }
       }
       return self();

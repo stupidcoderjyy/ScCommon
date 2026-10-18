@@ -16,7 +16,6 @@
 #include <string_view>
 #include <utility>
 
-#include "../json_owner.h"
 #include "../json_traits.h"
 
 namespace sc::json {
@@ -163,9 +162,7 @@ struct JsonOtherTraits<Json::Value> {
     return {.it = json.end()};
   }
 
-  static ::Json::Value Create() {
-    return {::Json::objectValue};
-  }
+  static ::Json::Value Create() { return {::Json::objectValue}; }
 };
 
 template <>

@@ -12,18 +12,16 @@ namespace sc::json {
 
 template <typename Json>
 struct JsonOwnerStorage {
-  JsonOwnerStorage(): json_(JsonOtherTraits<Json>::Create()), valid_(true) {}
+  JsonOwnerStorage() : json_(JsonOtherTraits<Json>::Create()), valid_(true) {}
   explicit JsonOwnerStorage(OwnedJsonT<Json>&& json)
       : json_(std::move(json)), valid_(true) {}
   template <JsonErrorHandler E>
-  explicit JsonOwnerStorage(std::string_view text,
-                            E& handler) {
+  explicit JsonOwnerStorage(std::string_view text, E& handler) {
     JsonParseTraits<Json, E>::Parse(text, json_, handler);
     valid_ = true;
   }
   template <JsonErrorHandler E>
-  explicit JsonOwnerStorage(std::istream& is,
-                            E& handler) {
+  explicit JsonOwnerStorage(std::istream& is, E& handler) {
     JsonParseTraits<Json, E>::Parse(is, json_, handler);
     valid_ = true;
   }
@@ -59,7 +57,7 @@ struct JsonOwnerStorage {
 
   explicit operator bool() const { return valid_; }
 
-private:
+ private:
   OwnedJsonT<Json> json_;
   bool valid_ = false;
 };
@@ -67,12 +65,35 @@ private:
 // 主模板
 template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 struct JsonOwner : JsonOwnerStorage<Json> {
-  using JsonOwnerStorage<Json>::JsonOwnerStorage;
+  using Base = JsonOwnerStorage<Json>;
 
-  explicit JsonOwner(std::string_view text)
-      : JsonOwnerStorage<Json>(text, GetDefaultErrorHandler<E>()) {}
-  explicit JsonOwner(std::istream& is)
-      : JsonOwnerStorage<Json>(is, GetDefaultErrorHandler<E>()) {}
+  explicit JsonOwner(E& handler = GetDefaultErrorHandler<E>())
+      : Base(), handler_(&handler) {}
+  explicit JsonOwner(OwnedJsonT<Json>&& json,
+                     E& handler = GetDefaultErrorHandler<E>())
+      : Base(std::move(json)), handler_(&handler) {}
+  explicit JsonOwner(std::string_view text,
+                     E& handler = GetDefaultErrorHandler<E>())
+      : Base(text, handler), handler_(&handler) {}
+  explicit JsonOwner(std::istream& is, E& handler = GetDefaultErrorHandler<E>())
+      : Base(is, handler), handler_(&handler) {}
+
+  JsonOwner(const JsonOwner&) noexcept = delete;
+  JsonOwner& operator=(const JsonOwner&) noexcept = delete;
+  JsonOwner(JsonOwner&& other) noexcept
+      : Base(std::move(other)), handler_(other.handler_) {}
+  JsonOwner& operator=(JsonOwner&& other) noexcept {
+    if (this != &other) {
+      Base::operator=(std::move(other));
+      handler_ = other.handler_;
+    }
+    return *this;
+  }
+
+  [[nodiscard]] E& error_handler() const noexcept { return *handler_; }
+
+ private:
+  E* handler_{nullptr};
 };
 
 template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
