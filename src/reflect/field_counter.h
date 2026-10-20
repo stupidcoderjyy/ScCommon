@@ -37,8 +37,15 @@ constexpr std::size_t CountFieldsImpl() {
     if constexpr (constexpr std::size_t mid = Lo + (Hi - Lo + 1) / 2;
                   IsBracesConstructible<T,
                                         std::make_index_sequence<mid>>::value) {
-      static_assert(mid != kMaxFields, "reflect: too many fields");
-      return CountFieldsImpl<T, mid, Hi>();
+      if constexpr (mid == kMaxFields) {
+        static_assert(
+            !IsBracesConstructible<
+                T, std::make_index_sequence<kMaxFields + 1>>::value,
+            "reflect: too many fields");
+        return kMaxFields;
+      } else {
+        return CountFieldsImpl<T, mid, Hi>();
+      }
     } else {
       return CountFieldsImpl<T, Lo, mid - 1>();
     }

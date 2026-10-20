@@ -119,6 +119,14 @@ struct Unregistered {
   int x;
 };
 
+struct AliasedPoint {
+  int x = 0;
+  int y = 0;
+  std::string name;
+};
+
+REGISTER_ALIAS(AliasedPoint, x, "left", y, "top", name, "label")
+
 //NOLINTEND
 
 namespace {
@@ -326,6 +334,35 @@ TEST(ReflectDescriptor, UnregisteredAggregateUsesAutoPath) {
   EXPECT_EQ(5, sc::reflect::GetField<"x"_s>(u));
   sc::reflect::GetField<"x"_s>(u) = 6;
   EXPECT_EQ(6, u.x);
+}
+
+// ---------------- 字段别名 ----------------
+
+TEST(ReflectAlias, LookupByAlias) {
+  AliasedPoint p{1, 2, "p"};
+  EXPECT_EQ(1, sc::reflect::GetField<"left"_s>(p));
+  EXPECT_EQ(2, sc::reflect::GetField<"top"_s>(p));
+  EXPECT_EQ("p", sc::reflect::GetField<"label"_s>(p));
+  EXPECT_EQ(&p.x, &sc::reflect::GetField<"left"_s>(p));
+  EXPECT_EQ(&p.name, &sc::reflect::GetField<"label"_s>(p));
+
+  sc::reflect::GetField<"left"_s>(p) = 7;
+  sc::reflect::GetField<"label"_s>(p) = "q";
+  EXPECT_EQ(7, p.x);
+  EXPECT_EQ("q", p.name);
+
+  // 原名仍然可用
+  EXPECT_EQ(7, sc::reflect::GetField<"x"_s>(p));
+}
+
+TEST(ReflectAlias, ConstAndNames) {
+  const AliasedPoint p{3, 4, "c"};
+  static_assert(
+      std::is_same_v<decltype(sc::reflect::GetField<"left"_s>(p)), const int&>);
+  EXPECT_EQ(3, sc::reflect::GetField<"left"_s>(p));
+  EXPECT_EQ("x", (sc::reflect::GetFieldName<"left"_s, AliasedPoint>()));
+  EXPECT_EQ("y", (sc::reflect::GetFieldName<"top"_s, AliasedPoint>()));
+  EXPECT_EQ("name", (sc::reflect::GetFieldName<"label"_s, AliasedPoint>()));
 }
 
 }  // namespace

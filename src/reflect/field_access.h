@@ -81,7 +81,10 @@ consteval std::size_t FindFieldIndex(std::index_sequence<I...>) {
   constexpr auto fields = Descriptor<T>::fields();
   auto i = sizeof...(I);
   ((std::get<I>(fields).name == S.view() ? (i = I, true) : false), ...);
-  return i;
+  if (i != sizeof...(I)) {
+    return i;
+  }
+  return detail::AliasFieldIndex<S, T>(std::index_sequence<I...>{});
 }
 
 template <common::FixedString S, typename T>
