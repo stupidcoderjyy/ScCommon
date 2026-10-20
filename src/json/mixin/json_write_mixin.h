@@ -10,7 +10,7 @@
 #include <tuple>
 #include <type_traits>
 
-#include "../../reflect/get_fields.h"
+#include "../../reflect/pfr.hpp"
 #include "../json_owner.h"
 #include "../json_traits.h"
 #include "../util/json_detail.h"
@@ -115,7 +115,7 @@ class JsonWriteMixin {
 
   template <typename Policy, typename T>
   bool WriteValue(const Json& parent, std::string_view name, const T& value) {
-    if constexpr (reflect::is_registered_v<T>) {
+    if constexpr (reflect::reflectable_v<T>) {
       Json* child = JsonTraits<Json>::AddChild(*self().owner(), parent, name);
       if (child == nullptr) {
         return false;
@@ -124,7 +124,7 @@ class JsonWriteMixin {
       std::apply(
           [&](const auto&... field) {
             ((ok = ok &&
-                   WriteValue<Policy>(*child, field.name, value.*field.member)),
+                   WriteValue<Policy>(*child, field.name, field.Get(value))),
              ...);
           },
           reflect::Descriptor<T>::fields());
@@ -164,7 +164,7 @@ class JsonWriteMixin {
 
   template <typename Policy, typename T>
   bool WriteElement(Json& array, const T& value) {
-    if constexpr (reflect::is_registered_v<T>) {
+    if constexpr (reflect::reflectable_v<T>) {
       Json* child = JsonTraits<Json>::AppendObject(*self().owner(), array);
       if (child == nullptr) {
         return false;
@@ -173,7 +173,7 @@ class JsonWriteMixin {
       std::apply(
           [&](const auto&... field) {
             ((ok = ok &&
-                   WriteValue<Policy>(*child, field.name, value.*field.member)),
+                   WriteValue<Policy>(*child, field.name, field.Get(value))),
              ...);
           },
           reflect::Descriptor<T>::fields());

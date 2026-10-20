@@ -316,8 +316,6 @@ struct SC_BENCH_NAME(BenchStruct) {
   std::string s;
 };
 
-REGISTER_FIELDS(SC_BENCH_NAME(BenchStruct), u, d, flag, s)
-
 static void SC_BENCH_NAME(AccessStructOurs)(benchmark::State& state) {
   const auto json = SC_BENCH_MAKE_JSON();
   JsonView<SC_BENCH_TYPE> view(json);

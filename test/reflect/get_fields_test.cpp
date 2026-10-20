@@ -121,9 +121,6 @@ struct Unregistered {
 
 //NOLINTEND
 
-REGISTER_FIELDS(Point, x, y)
-REGISTER_FIELDS(Mixed, i, s, d)
-
 namespace {
 
 using sc::reflect::operator""_s;
@@ -244,38 +241,27 @@ TEST(ReflectPfrGetField, LargeAggregate) {
   EXPECT_EQ(1, w.f1);
 }
 
-// ---------------- 注册元信息 ----------------
+// ---------------- 自动元信息 ----------------
 
-static_assert(sc::reflect::is_registered_v<Point>);
-static_assert(sc::reflect::is_registered_v<Mixed>);
-static_assert(!sc::reflect::is_registered_v<Unregistered>);
-static_assert(sc::reflect::RegisteredFields<Point>() == 2);
-static_assert(sc::reflect::RegisteredFields<Mixed>() == 3);
+static_assert(sc::reflect::reflectable_v<Point>);
+static_assert(sc::reflect::reflectable_v<Mixed>);
+static_assert(sc::reflect::reflectable_v<Unregistered>);
+static_assert(!sc::reflect::reflectable_v<Empty>);
+static_assert(!sc::reflect::reflectable_v<int>);
+static_assert(!sc::reflect::reflectable_v<Unregistered&>);
+static_assert(sc::reflect::FieldCount<Point>() == 2);
+static_assert(sc::reflect::FieldCount<Mixed>() == 3);
 static_assert(sc::reflect::GetFieldName<0, Point>() == "x");
 static_assert(sc::reflect::GetFieldName<1, Mixed>() == "s");
 static_assert(sc::reflect::GetFieldName<"i"_s, Mixed>() == "i");
 static_assert(sc::reflect::GetFieldName<"d"_s, Mixed>() == "d");
 
-// 反射判定与聚合约束
-static_assert(sc::reflect::Registered<Point>);
-static_assert(!sc::reflect::Registered<Unregistered>);
-static_assert(sc::reflect::ReflectAggregate<Point>);
-static_assert(sc::reflect::ReflectAggregate<Mixed>);
-static_assert(!sc::reflect::ReflectAggregate<int>);
-static_assert(!sc::reflect::ReflectAggregate<Unregistered&>);
-
-TEST(ReflectConstraint, ConceptAndFallback) {
-  EXPECT_TRUE((sc::reflect::Registered<Point>));
-  EXPECT_FALSE((sc::reflect::Registered<Unregistered>));
-  EXPECT_TRUE((sc::reflect::ReflectAggregate<Mixed>));
-  EXPECT_FALSE((sc::reflect::ReflectAggregate<int>));
-  // 未注册类型不走元信息路径，由 GetField 回落到 PFR
-  EXPECT_FALSE((sc::reflect::Registered<Unregistered>));
-}
-
-TEST(ReflectDescriptor, RegistrationDetection) {
-  EXPECT_TRUE(sc::reflect::is_registered_v<Point>);
-  EXPECT_FALSE(sc::reflect::is_registered_v<Unregistered>);
+TEST(ReflectConstraint, ReflectableAggregates) {
+  EXPECT_TRUE(sc::reflect::reflectable_v<Point>);
+  EXPECT_TRUE(sc::reflect::reflectable_v<Unregistered>);
+  EXPECT_FALSE(sc::reflect::reflectable_v<Empty>);
+  EXPECT_FALSE(sc::reflect::reflectable_v<int>);
+  EXPECT_FALSE(sc::reflect::reflectable_v<Unregistered&>);
 }
 
 TEST(ReflectDescriptor, GetFieldByName) {
@@ -333,11 +319,12 @@ TEST(ReflectDescriptor, GetFieldConstReturnsConstReference) {
   EXPECT_DOUBLE_EQ(2.5, sc::reflect::GetField<2>(m));
 }
 
-TEST(ReflectDescriptor, UnregisteredFallsBackToPfr) {
+TEST(ReflectDescriptor, UnregisteredAggregateUsesAutoPath) {
   Unregistered u{5};
-  static_assert(!sc::reflect::is_registered_v<Unregistered>);
+  static_assert(sc::reflect::reflectable_v<Unregistered>);
   EXPECT_EQ(5, sc::reflect::GetField<0>(u));
-  sc::reflect::GetField<0>(u) = 6;
+  EXPECT_EQ(5, sc::reflect::GetField<"x"_s>(u));
+  sc::reflect::GetField<"x"_s>(u) = 6;
   EXPECT_EQ(6, u.x);
 }
 

@@ -1722,8 +1722,6 @@ struct SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME) {
   std::string s;
 };
 
-REGISTER_FIELDS(SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME), neg, d, s)
-
 TEST(SC_JSON_TEST_SUITE_NAME, GetTypeFillsStruct) {
   using Reflected = SC_JSON_CONCAT(Reflected_, SC_JSON_TEST_SUITE_NAME);
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
@@ -1756,9 +1754,6 @@ struct SC_JSON_CONCAT(NestedBag_, SC_JSON_TEST_SUITE_NAME) {
   std::string s;
 };
 
-REGISTER_FIELDS(SC_JSON_CONCAT(NestedPoint_, SC_JSON_TEST_SUITE_NAME), x, y)
-REGISTER_FIELDS(SC_JSON_CONCAT(NestedBag_, SC_JSON_TEST_SUITE_NAME), point, d, s)
-
 TEST(SC_JSON_TEST_SUITE_NAME, GetTypeWithNestedStruct) {
   using Bag = SC_JSON_CONCAT(NestedBag_, SC_JSON_TEST_SUITE_NAME);
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
@@ -1790,10 +1785,6 @@ struct SC_JSON_CONCAT(ContainerBag_, SC_JSON_TEST_SUITE_NAME) {
   std::map<std::string, int> point;
   std::vector<SC_JSON_CONCAT(Item_, SC_JSON_TEST_SUITE_NAME)> obj_list;
 };
-
-REGISTER_FIELDS(SC_JSON_CONCAT(Item_, SC_JSON_TEST_SUITE_NAME), id)
-REGISTER_FIELDS(SC_JSON_CONCAT(ContainerBag_, SC_JSON_TEST_SUITE_NAME), list,
-                point, obj_list)
 
 TEST(SC_JSON_TEST_SUITE_NAME, GetTypeWithContainers) {
   using Bag = SC_JSON_CONCAT(ContainerBag_, SC_JSON_TEST_SUITE_NAME);

@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "../../reflect/get_fields.h"
+#include "../../reflect/pfr.hpp"
 #include "../json_path.h"
 #include "../util/json_detail.h"
 #include "../util/json_error.h"
@@ -211,7 +211,7 @@ class JsonAccessMixin {
 
   template <AccessPolicy Policy, typename T>
   bool LoadType(const Json& node, T& out) {
-    if constexpr (reflect::is_registered_v<T>) {
+    if constexpr (reflect::reflectable_v<T>) {
       std::apply(
           [&](const auto&... field) {
             (LoadField<Policy>(node, field, out), ...);
@@ -267,7 +267,7 @@ class JsonAccessMixin {
       }
       return;
     }
-    if (!LoadType<Policy>(*child, out.*field.member)) {
+    if (!LoadType<Policy>(*child, field.Get(out))) {
       self().error_handler().OnTypeMismatch(field.name);
     }
   }
