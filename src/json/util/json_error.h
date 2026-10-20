@@ -33,6 +33,40 @@ struct EmptyJsonErrorHandler {
   static void OnJsonParseError(std::string_view) {}
 };
 
+template <typename T>
+concept ErrorCodeSupplier = requires {
+  { T::CodeOk() } -> std::convertible_to<int>;
+  { T::CodePathResolveError() } -> std::convertible_to<int>;
+  { T::CodeTypeMismatch() } -> std::convertible_to<int>;
+  { T::CodeJsonParseError() } -> std::convertible_to<int>;
+};
+
+template <ErrorCodeSupplier S>
+struct ErrorCodeJsonErrorHandler {
+  void OnPathResolveError(std::string_view) { ec_ = S::CodePathResolveError(); }
+  void OnTypeMismatch(std::string_view) { ec_ = S::CodeTypeMismatch(); }
+  void OnJsonParseError(std::string_view) { ec_ = S::CodeJsonParseError(); }
+
+  [[nodiscard]] bool error() const { return ec_ != S::CodeOk(); }
+  [[nodiscard]] bool ok() const { return ec_ == S::CodeOk(); }
+  [[nodiscard]] int code() const { return ec_; }
+
+  bool take_error() {
+    auto e = error();
+    ec_ = S::CodeOk();
+    return e;
+  }
+
+  int take_code() {
+    auto c = code();
+    ec_ = S::CodeOk();
+    return c;
+  }
+
+ private:
+  int ec_{S::CodeOk()};
+};
+
 inline DefaultJsonErrorHandler kDefaultErrorHandler{};
 inline EmptyJsonErrorHandler kEmptyErrorHandler{};
 

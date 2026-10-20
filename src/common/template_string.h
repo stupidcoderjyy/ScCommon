@@ -48,11 +48,6 @@ struct FixedString {
   }
 };
 
-// 推导指引
-// 缺少指引的话必须写 FixedString<4> str = "1234";
-template <std::size_t N>
-FixedString(const char (&)[N]) -> FixedString<N>;
-
 }
 
 #endif  // SCCOMMON_TEMPLATE_STRING_H
