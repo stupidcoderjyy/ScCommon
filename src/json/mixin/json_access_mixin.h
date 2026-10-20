@@ -25,86 +25,37 @@ class JsonAccessMixin {
   template <typename T, AccessPolicy Policy = Optional, std::size_t N>
   Derived& Put(const Parts<N>& path, T& out,
                std::type_identity_t<T> default_val = {}) {
-    return FillValue<Policy, Extractor<Json, T>>(path, out,
-                                                 std::move(default_val));
+    if constexpr (detail::is_sequence_v<T>) {
+      using Extractor = Extractor<Json, typename T::value_type>;
+      return FillArray<Policy, Extractor>(path, out);
+    } else if constexpr (detail::is_map_v<T>) {
+      using Extractor = Extractor<Json, typename T::mapped_type>;
+      return FillMap<Policy, Extractor>(path, out);
+    } else if constexpr (reflect::reflectable_v<T>) {
+      const auto view = self().template View<Policy>(path);
+      if (!view.valid()) {
+        out = std::move(default_val);
+        return self();
+      }
+      if (!JsonTraits<Json>::IsObject(*view.node())) {
+        if constexpr (std::is_same_v<Policy, Required>) {
+          self().error_handler().OnTypeMismatch(detail::PathString(path));
+        }
+        out = std::move(default_val);
+        return self();
+      }
+      LoadType<Policy>(*view.node(), out);
+      return self();
+    } else {
+      using Extractor = Extractor<Json, T>;
+      return FillValue<Policy, Extractor>(path, out, std::move(default_val));
+    }
   }
 
   template <typename T, AccessPolicy Policy = Optional, std::size_t N>
-  [[nodiscard]] T Get(const Parts<N>& path) {
-    T out{};
-    Put<T, Policy>(path, out, T{});
-    return out;
-  }
-
-  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
-  [[nodiscard]] T Get(const Parts<N>& path, T default_val) {
+  [[nodiscard]] T Get(const Parts<N>& path, T default_val = {}) {
     T out{};
     Put<T, Policy>(path, out, std::move(default_val));
-    return out;
-  }
-
-  template <typename T, template <typename...> class List, std::size_t N>
-  Derived& PutArray(const Parts<N>& path, List<T>& arr) {
-    return FillArray<Optional, Extractor<Json, T>>(path, arr);
-  }
-
-  template <typename T, AccessPolicy Policy, template <typename...> class List,
-            std::size_t N>
-  Derived& PutArray(const Parts<N>& path, List<T>& arr) {
-    return FillArray<Policy, Extractor<Json, T>>(path, arr);
-  }
-
-  template <typename R, AccessPolicy Policy = Optional, std::size_t N>
-  [[nodiscard]] R GetArray(const Parts<N>& path) {
-    static_assert(
-        requires { typename R::value_type; },
-        "JsonAccessMixin: GetArray<R> 的 R 必须是容器类型，"
-        "如 std::vector<std::int64_t>");
-    R out{};
-    FillArray<Policy, Extractor<Json, typename R::value_type>>(path, out);
-    return out;
-  }
-
-  template <typename T, template <typename...> class Map, std::size_t N>
-  Derived& PutMap(const Parts<N>& path, Map<std::string, T>& map) {
-    return FillMap<Optional, Extractor<Json, T>>(path, map);
-  }
-
-  template <typename T, AccessPolicy Policy, template <typename...> class Map,
-            std::size_t N>
-  Derived& PutMap(const Parts<N>& path, Map<std::string, T>& map) {
-    return FillMap<Policy, Extractor<Json, T>>(path, map);
-  }
-
-  template <typename R, AccessPolicy Policy = Optional, std::size_t N>
-  [[nodiscard]] R GetMap(const Parts<N>& path) {
-    static_assert(
-        requires { typename R::mapped_type; },
-        "JsonAccessMixin: GetMap<R> 的 R 必须是 map 类型，"
-        "如 std::map<std::string, std::int64_t>");
-    R out{};
-    FillMap<Policy, Extractor<Json, typename R::mapped_type>>(path, out);
-    return out;
-  }
-
-  // 将目标路径上的json解析为类型
-  // 支持: 1)已注册的可聚合结构体/类; 2) 线性容器; 3) 表容器; 4)
-  // 所有Json支持的基本类型
-  //      对于第1类，Policy会被传递进每一个字段
-  // 无论字段解析成功与否，总是会解析所有字段
-  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
-  void PutType(const Parts<N>& path, T& t) {
-    const auto view = self().template View<Policy>(path);
-    if (!view.valid()) {
-      return;
-    }
-    LoadType<Policy>(*view.node(), t);
-  }
-
-  template <typename T, AccessPolicy Policy = Optional, std::size_t N>
-  [[nodiscard]] T GetType(const Parts<N>& path) {
-    T out{};
-    PutType<T, Policy>(path, out);
     return out;
   }
 

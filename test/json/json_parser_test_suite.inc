@@ -779,42 +779,42 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayAndMap) {
   JsonView view(json);
 
   std::vector<int> nums;
-  view.PutArray<int, Required>("list"_path, nums);
+  view.Put<std::vector<int>, Required>("list"_path, nums);
   EXPECT_EQ((std::vector{1, 2, 3}), nums);
 
   std::map<std::string, int> point;
-  view.PutMap<int, Required>("point"_path, point);
+  view.Put<std::map<std::string, int>, Required>("point"_path, point);
   ASSERT_EQ(2u, point.size());
   EXPECT_EQ(10, point["x"]);
   EXPECT_EQ(20, point["y"]);
 
   // Optional：缺失时得到空容器
   std::vector empty_nums = {9};
-  view.PutArray("no.such"_path, empty_nums);
+  view.Put("no.such"_path, empty_nums);
   EXPECT_TRUE(empty_nums.empty());
 
   std::map<std::string, int> empty_map;
-  view.PutMap("no.such"_path, empty_map);
+  view.Put("no.such"_path, empty_map);
   EXPECT_TRUE(empty_map.empty());
 
   // 推导形式：元素类型由容器决定
   std::vector<int> deduced_nums;
-  view.PutArray("list"_path, deduced_nums);
+  view.Put("list"_path, deduced_nums);
   EXPECT_EQ((std::vector{1, 2, 3}), deduced_nums);
 
   std::map<std::string, int> deduced_point;
-  view.PutMap("point"_path, deduced_point);
+  view.Put("point"_path, deduced_point);
   ASSERT_EQ(2u, deduced_point.size());
   EXPECT_EQ(10, deduced_point["x"]);
   EXPECT_EQ(20, deduced_point["y"]);
 
   // 推导形式下 ExistencePolicy 仍是第一个模板实参
   std::vector<int> required_nums;
-  view.PutArray<int, Required>("list"_path, required_nums);
+  view.Put<std::vector<int>, Required>("list"_path, required_nums);
   EXPECT_EQ((std::vector{1, 2, 3}), required_nums);
 
   std::map<std::string, int> required_point;
-  view.PutMap<int, Required>("point"_path, required_point);
+  view.Put<std::map<std::string, int>, Required>("point"_path, required_point);
   EXPECT_EQ(2u, required_point.size());
 }
 
@@ -828,7 +828,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayElementMismatchReportsFullPath) {
 
   std::vector<int> arr;
   // 元素是对象，不是 int
-  view.PutArray<int, Required>("obj_list"_path, arr);
+  view.Put<std::vector<int>, Required>("obj_list"_path, arr);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("obj_list[0]"), ErrorHandler::mismatches.front());
   EXPECT_TRUE(arr.empty());
@@ -844,7 +844,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutMapValueMismatchReportsFullPath) {
 
   std::map<std::string, std::string> map;
   // 值是 int，不是 string
-  view.PutMap<std::string, Required>("point"_path, map);
+  view.Put<std::map<std::string, std::string>, Required>("point"_path, map);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("point."), ErrorHandler::mismatches.front().substr(0, 6));
   EXPECT_TRUE(map.empty());
@@ -1015,7 +1015,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayOfOptionalTargets) {
 
   // [1,null,3] → [1, nullopt, 3]
   std::vector<std::optional<int>> values;
-  view.PutArray<std::optional<int>, Required>("opt_list"_path, values);
+  view.Put<std::vector<std::optional<int>>, Required>("opt_list"_path,
+                                                      values);
   ASSERT_EQ(3u, values.size());
   ASSERT_TRUE(values[0].has_value());
   EXPECT_EQ(1, *values[0]);
@@ -1025,7 +1026,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayOfOptionalTargets) {
 
   // 全是具体值时为全 engaged
   std::vector<std::optional<int>> plain;
-  view.PutArray("list"_path, plain);
+  view.Put("list"_path, plain);
   ASSERT_EQ(3u, plain.size());
   EXPECT_TRUE(plain[0].has_value());
   EXPECT_TRUE(plain[1].has_value());
@@ -1042,7 +1043,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayOptionalElementMismatchReportsPath) {
 
   // 元素是对象，既不是 null 也不是 int → 类型不符
   std::vector<std::optional<int>> arr;
-  view.PutArray<std::optional<int>, Required>("obj_list"_path, arr);
+  view.Put<std::vector<std::optional<int>>, Required>("obj_list"_path, arr);
   ASSERT_EQ(1u, ErrorHandler::mismatches.size());
   EXPECT_EQ(std::string("obj_list[0]"), ErrorHandler::mismatches.front());
   EXPECT_TRUE(arr.empty());
@@ -1054,7 +1055,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutMapOfOptionalTargets) {
 
   // {"x":10,"y":null} → x engaged 10，y nullopt
   std::map<std::string, std::optional<int>> values;
-  view.PutMap<std::optional<int>, Required>("opt_point"_path, values);
+  view.Put<std::map<std::string, std::optional<int>>, Required>(
+      "opt_point"_path, values);
   ASSERT_EQ(2u, values.size());
   ASSERT_TRUE(values["x"].has_value());
   EXPECT_EQ(10, *values["x"]);
@@ -1129,26 +1131,26 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetArrayAndGetMapReturnContainers) {
 
   // 第二个模板实参是「返回类型」
   const std::vector<int> nums =
-      view.GetArray<std::vector<int>, Required>("list"_path);
+      view.Get<std::vector<int>, Required>("list"_path);
   EXPECT_EQ((std::vector{1, 2, 3}), nums);
 
   const auto point =
-      view.GetMap<std::map<std::string, int>, Required>("point"_path);
+      view.Get<std::map<std::string, int>, Required>("point"_path);
   ASSERT_EQ(2u, point.size());
   EXPECT_EQ(10, point.at("x"));
   EXPECT_EQ(20, point.at("y"));
 
   // Optional：失败 → 空容器
   const std::vector<int> missing =
-      view.GetArray<std::vector<int>, Optional>("no.such"_path);
+      view.Get<std::vector<int>, Optional>("no.such"_path);
   EXPECT_TRUE(missing.empty());
   const auto not_object =
-      view.GetMap<std::map<std::string, int>, Optional>("list"_path);
+      view.Get<std::map<std::string, int>, Optional>("list"_path);
   EXPECT_TRUE(not_object.empty());
 
   // 元素可空：null → nullopt
   const auto opts =
-      view.GetArray<std::vector<std::optional<int>>, Required>("opt_list"_path);
+      view.Get<std::vector<std::optional<int>>, Required>("opt_list"_path);
   ASSERT_EQ(3u, opts.size());
   ASSERT_TRUE(opts[0].has_value());
   EXPECT_EQ(1, *opts[0]);
@@ -1199,10 +1201,10 @@ TEST(SC_JSON_TEST_SUITE_NAME, TypeIsFirstPolicyIsSecond) {
   EXPECT_THROW(((void)view.Get<int, Required>("s"_path)), std::runtime_error);
 
   // 容器版同理：只写容器类型
-  const std::vector<int> nums = view.GetArray<std::vector<int>>("list"_path);
+  const std::vector<int> nums = view.Get<std::vector<int>>("list"_path);
   EXPECT_EQ((std::vector{1, 2, 3}), nums);
   const std::map<std::string, int> point =
-      view.GetMap<std::map<std::string, int>>("point"_path);
+      view.Get<std::map<std::string, int>>("point"_path);
   EXPECT_EQ(2u, point.size());
 
   // Put：类型在第一个，策略在第二个；全推导写法不受影响
@@ -1217,29 +1219,29 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetArrayOfDoubleFromNestedPath) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
   JsonView view(json);
 
-  // 外部项目里的写法：auto values = view.GetArray<std::vector<double>, Required>(path);
+  // 外部项目里的写法：auto values = view.Get<std::vector<double>, Required>(path);
   const std::vector<double> values =
-      view.GetArray<std::vector<double>, Required>("mix_res[0].value"_path);
+      view.Get<std::vector<double>, Required>("mix_res[0].value"_path);
   ASSERT_EQ(2u, values.size());
   EXPECT_DOUBLE_EQ(1.5, values[0]);
   EXPECT_DOUBLE_EQ(2.5, values[1]);
 
   // 省略策略
   const auto values2 =
-      view.GetArray<std::vector<double>>("mix_res[0].value"_path);
+      view.Get<std::vector<double>>("mix_res[0].value"_path);
   EXPECT_EQ(values, values2);
 
   // 写入形式：显式 <类型, 策略> 与全推导
   std::vector<double> out;
-  view.PutArray<double, Required>("mix_res[0].value"_path, out);
+  view.Put<std::vector<double>, Required>("mix_res[0].value"_path, out);
   EXPECT_EQ(values, out);
   std::vector<double> out2;
-  view.PutArray("mix_res[0].value"_path, out2);
+  view.Put("mix_res[0].value"_path, out2);
   EXPECT_EQ(values, out2);
 
   // 缺失 → 空容器（策略默认 Optional）
   const std::vector<double> missing =
-      view.GetArray<std::vector<double>>("no.such"_path);
+      view.Get<std::vector<double>>("no.such"_path);
   EXPECT_TRUE(missing.empty());
 }
 
@@ -1727,17 +1729,17 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetTypeFillsStruct) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
   JsonView<SC_JSON_TYPE> view(json);
 
-  const auto value = view.GetType<Reflected>(""_path);
+  const auto value = view.Get<Reflected>(""_path);
   EXPECT_EQ(-7, value.neg);
   EXPECT_DOUBLE_EQ(3.14, value.d);
   EXPECT_EQ(std::string("hello"), value.s);
 
   Reflected target;
-  view.PutType<Reflected>(""_path, target);
+  view.Put<Reflected>(""_path, target);
   EXPECT_EQ(-7, target.neg);
   EXPECT_EQ(std::string("hello"), target.s);
 
-  const auto partial = view.GetType<Reflected>("a"_path);
+  const auto partial = view.Get<Reflected>("a"_path);
   EXPECT_EQ(0, partial.neg);
   EXPECT_DOUBLE_EQ(0.0, partial.d);
   EXPECT_TRUE(partial.s.empty());
@@ -1759,19 +1761,19 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetTypeWithNestedStruct) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
   JsonView<SC_JSON_TYPE> view(json);
 
-  const auto bag = view.GetType<Bag>(""_path);
+  const auto bag = view.Get<Bag>(""_path);
   EXPECT_EQ(10, bag.point.x);
   EXPECT_EQ(20, bag.point.y);
   EXPECT_DOUBLE_EQ(3.14, bag.d);
   EXPECT_EQ(std::string("hello"), bag.s);
 
   Bag target;
-  view.PutType<Bag>(""_path, target);
+  view.Put<Bag>(""_path, target);
   EXPECT_EQ(10, target.point.x);
   EXPECT_EQ(20, target.point.y);
 
-  const auto point = view.GetType<SC_JSON_CONCAT(NestedPoint_, SC_JSON_TEST_SUITE_NAME)>(
-      "point"_path);
+  const auto point = view.Get<
+      SC_JSON_CONCAT(NestedPoint_, SC_JSON_TEST_SUITE_NAME)>("point"_path);
   EXPECT_EQ(10, point.x);
   EXPECT_EQ(20, point.y);
 }
@@ -1791,7 +1793,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, GetTypeWithContainers) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
   JsonView<SC_JSON_TYPE> view(json);
 
-  const auto bag = view.GetType<Bag>(""_path);
+  const auto bag = view.Get<Bag>(""_path);
   EXPECT_EQ((std::vector<std::int64_t>{1, 2, 3}), bag.list);
   ASSERT_EQ(2u, bag.point.size());
   EXPECT_EQ(10, bag.point.at("x"));
@@ -1820,7 +1822,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, SetTypeWithContainers) {
   writer["bag"_path] = bag;
 
   JsonView<SC_JSON_TYPE> view(owner.json());
-  const auto round = view.GetType<Bag>("bag"_path);
+  const auto round = view.Get<Bag>("bag"_path);
   EXPECT_EQ((std::vector<std::int64_t>{1, 2, 3}), round.list);
   ASSERT_EQ(2u, round.point.size());
   EXPECT_EQ(10, round.point.at("x"));

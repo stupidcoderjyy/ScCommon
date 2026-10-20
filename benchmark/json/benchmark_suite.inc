@@ -175,7 +175,7 @@ static void SC_BENCH_NAME(AccessArrayOurs)(benchmark::State& state) {
   JsonView<SC_BENCH_TYPE> view(json);
   for (auto _ : state) {
     auto copied =
-        view.GetArray<std::vector<std::int64_t>, Required>("list"_path);
+        view.Get<std::vector<std::int64_t>, Required>("list"_path);
     const auto range = view.ViewArray<Required>("list"_path);
     std::int64_t sum = 0;
     for (const auto& element : range) {
@@ -205,7 +205,7 @@ static void SC_BENCH_NAME(AccessObjectOurs)(benchmark::State& state) {
   const auto json = SC_BENCH_MAKE_JSON();
   JsonView<SC_BENCH_TYPE> view(json);
   for (auto _ : state) {
-    auto copied = view.GetMap<std::map<std::string, std::int64_t>, Required>(
+    auto copied = view.Get<std::map<std::string, std::int64_t>, Required>(
         "obj"_path);
     std::int64_t sum = 0;
     for (auto&& [key, value] : view.ViewObject<Required>("obj"_path)) {
@@ -320,7 +320,7 @@ static void SC_BENCH_NAME(AccessStructOurs)(benchmark::State& state) {
   const auto json = SC_BENCH_MAKE_JSON();
   JsonView<SC_BENCH_TYPE> view(json);
   for (auto _ : state) {
-    auto value = view.GetType<SC_BENCH_NAME(BenchStruct)>(""_path);
+    auto value = view.Get<SC_BENCH_NAME(BenchStruct)>(""_path);
     benchmark::DoNotOptimize(value);
   }
 }
