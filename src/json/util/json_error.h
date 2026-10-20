@@ -33,42 +33,54 @@ struct EmptyJsonErrorHandler {
   static void OnJsonParseError(std::string_view) {}
 };
 
-template <typename T>
-concept ErrorCodeSupplier = requires {
-  { T::CodeOk() } -> std::convertible_to<int>;
-  { T::CodePathResolveError() } -> std::convertible_to<int>;
-  { T::CodeTypeMismatch() } -> std::convertible_to<int>;
-  { T::CodeJsonParseError() } -> std::convertible_to<int>;
-};
+namespace ec {
 
-template <ErrorCodeSupplier S>
+inline constexpr int kPathResolveError = -2000;
+inline constexpr int kTypeMismatch = -2001;
+inline constexpr int kJsonParseError = -2002;
+
+}
+
 struct ErrorCodeJsonErrorHandler {
-  void OnPathResolveError(std::string_view) { ec_ = S::CodePathResolveError(); }
-  void OnTypeMismatch(std::string_view) { ec_ = S::CodeTypeMismatch(); }
-  void OnJsonParseError(std::string_view) { ec_ = S::CodeJsonParseError(); }
+  void OnPathResolveError(std::string_view) {
+    code_ = next_ec_ == 0 ? ec::kPathResolveError : next_ec_;
+    next_ec_ = 0;
+  }
+  void OnTypeMismatch(std::string_view) {
+    code_ = next_ec_ == 0 ? ec::kTypeMismatch : next_ec_;
+    next_ec_ = 0;
+  }
+  void OnJsonParseError(std::string_view) {
+    code_ = next_ec_ == 0 ? ec::kJsonParseError : next_ec_;
+    next_ec_ = 0;
+  }
 
-  [[nodiscard]] bool error() const { return ec_ != S::CodeOk(); }
-  [[nodiscard]] bool ok() const { return ec_ == S::CodeOk(); }
-  [[nodiscard]] int code() const { return ec_; }
+  [[nodiscard]] bool error() const { return code_ != 0; }
+  [[nodiscard]] bool ok() const { return code_ == 0; }
+  [[nodiscard]] int code() const { return code_; }
+
+  void set_next_ec(int ec) { next_ec_ = ec; }
 
   bool take_error() {
     auto e = error();
-    ec_ = S::CodeOk();
+    code_ = 0;
     return e;
   }
 
   int take_code() {
     auto c = code();
-    ec_ = S::CodeOk();
+    code_ = 0;
     return c;
   }
 
  private:
-  int ec_{S::CodeOk()};
+  int code_{0};
+  int next_ec_{0};
 };
 
 inline DefaultJsonErrorHandler kDefaultErrorHandler{};
 inline EmptyJsonErrorHandler kEmptyErrorHandler{};
+inline ErrorCodeJsonErrorHandler kErrorCodeErrorHandler{};
 
 template <typename T>
 concept JsonErrorHandler =
@@ -86,6 +98,8 @@ E& GetDefaultErrorHandler() {
     return kEmptyErrorHandler;
   } else if constexpr (std::is_same_v<E, DefaultJsonErrorHandler>) {
     return kDefaultErrorHandler;
+  } else if constexpr (std::is_same_v<E, ErrorCodeJsonErrorHandler>) {
+    return kErrorCodeErrorHandler;
   } else {
     static_assert(!std::is_same_v<E, E>,
                   "sc::json: custom error handler must be passed explicitly");
