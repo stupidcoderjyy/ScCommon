@@ -750,27 +750,24 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutRequiredReportsErrors) {
                std::runtime_error);
 }
 
-TEST(SC_JSON_TEST_SUITE_NAME, PutReturnsSelfForChaining) {
+TEST(SC_JSON_TEST_SUITE_NAME, PutFillsOutputs) {
   const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
   JsonView view(json);
 
   int i = 0;
   std::string s;
   bool flag = false;
-  JsonView<SC_JSON_TYPE>& ref =
-      view.Put<int, Required>("a.b"_path, i)
-          .Put<std::string, Required>("s"_path, s)
-          .Put<bool, Required>("flag"_path, flag);
-  EXPECT_EQ(&ref, &view);
+  view.Put<int, Required>("a.b"_path, i);
+  view.Put<std::string, Required>("s"_path, s);
+  view.Put<bool, Required>("flag"_path, flag);
   EXPECT_EQ(42, i);
   EXPECT_EQ(std::string("hello"), s);
   EXPECT_TRUE(flag);
 
-  // 推导形式同样可链式调用，且与显式形式混用
+  // 推导形式与显式形式混用
   int deduced_i = 0;
-  JsonView<SC_JSON_TYPE>& deduced_ref =
-      view.Put("a.b"_path, deduced_i).Put<std::string, Required>("s"_path, s);
-  EXPECT_EQ(&deduced_ref, &view);
+  view.Put("a.b"_path, deduced_i);
+  view.Put<std::string, Required>("s"_path, s);
   EXPECT_EQ(42, deduced_i);
 }
 
@@ -816,6 +813,30 @@ TEST(SC_JSON_TEST_SUITE_NAME, PutArrayAndMap) {
   std::map<std::string, int> required_point;
   view.Put<std::map<std::string, int>, Required>("point"_path, required_point);
   EXPECT_EQ(2u, required_point.size());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, StringPathOverloads) {
+  const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+  JsonView view(json);
+
+  int neg = 0;
+  view.Put("neg", neg);
+  EXPECT_EQ(-7, neg);
+  EXPECT_EQ(-7, view.Get<int>("neg"));
+  EXPECT_EQ(-7, view.Get<int>("neg", -1));
+  EXPECT_EQ(-1, view.Get<int>("no.such", -1));
+
+  std::string text;
+  view.Put("s", text);
+  EXPECT_EQ(std::string("hello"), text);
+
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(R"({})"));
+  JsonWriter<SC_JSON_TYPE> writer(owner);
+  writer["n"] = 5;
+  writer.Set("m", 7);
+  JsonView written(owner);
+  EXPECT_EQ(5, written.Get<int>("n"));
+  EXPECT_EQ(7, written.Get<int>("m"));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutArrayElementMismatchReportsFullPath) {

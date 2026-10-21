@@ -18,75 +18,83 @@
 
 namespace sc::json {
 
-template <typename Derived, typename Json, JsonErrorHandler E>
+template <typename Derived, typename Json>
 class JsonWriteMixin {
  public:
   using Self = Derived;
   using OwnerType = JsonOwnerStorage<Json>;
 
   template <typename T, AccessPolicy Policy = Optional, std::size_t N>
-  Self& Set(const Parts<N>& path, const T& value) {
+  void Set(const Parts<N>& path, const T& value) {
     OwnerType* owner = self().owner();
     if (owner == nullptr) {
-      return self();
+      return;
     }
     if constexpr (N == 0) {
       if constexpr (std::is_same_v<Policy, Required>) {
         self().error_handler().OnPathResolveError(detail::PathString(path));
       }
-      return self();
     } else {
       Json* parent = nullptr;
       if constexpr (N == 1) {
         parent = &owner->json();
       } else {
         const auto sub = path.template Sub<0, N - 1>();
-        parent = detail::ResolveWithPolicy<Json, N - 1, Policy, E, true>(
+        using Handler =
+            std::remove_reference_t<decltype(self().error_handler())>;
+        parent = detail::ResolveWithPolicy<Json, N - 1, Policy, Handler, true>(
             &owner->json(), sub, self().error_handler(), owner);
       }
       if (parent == nullptr) {
-        return self();
+        return;
       }
       if (!WriteValue<Policy>(*parent, path[N - 1], value)) {
         if constexpr (std::is_same_v<Policy, Required>) {
           self().error_handler().OnTypeMismatch(detail::PathString(path));
         }
       }
-      return self();
     }
   }
 
+  template <typename T, AccessPolicy Policy = Optional>
+  void Set(std::string_view name, const T& value) {
+    Set<T, Policy>(Parts{name}, value);
+  }
+
   template <AccessPolicy Policy = Optional, std::size_t N>
-  Self& Remove(const Parts<N>& path) {
+  void Remove(const Parts<N>& path) {
     OwnerType* owner = self().owner();
     if (owner == nullptr) {
-      return self();
+      return;
     }
     if constexpr (N == 0) {
       // 空路径即根节点，无法删除
       if constexpr (std::is_same_v<Policy, Required>) {
         self().error_handler().OnPathResolveError(detail::PathString(path));
       }
-      return self();
     } else {
       Json* parent = nullptr;
       if constexpr (N == 1) {
         parent = &owner->json();
       } else {
         const auto sub = path.template Sub<0, N - 1>();
-        parent = detail::ResolveWithPolicy<Json, N - 1, Policy, E>(
+        parent = detail::ResolveWithPolicy<Json, N - 1, Policy>(
             &owner->json(), sub, self().error_handler());
       }
       if (parent == nullptr) {
-        return self();
+        return;
       }
       if (!JsonTraits<Json>::RemoveChild(*owner, *parent, path[N - 1])) {
         if constexpr (std::is_same_v<Policy, Required>) {
           self().error_handler().OnPathResolveError(detail::PathString(path));
         }
       }
-      return self();
     }
+  }
+
+  template <AccessPolicy Policy = Optional>
+  void Remove(std::string_view path) {
+    Remove<Policy>(Parts{path});
   }
 
   template <std::size_t N, AccessPolicy Policy = Optional>
@@ -108,6 +116,11 @@ class JsonWriteMixin {
   template <AccessPolicy Policy = Optional, std::size_t N>
   Proxy<N, Policy> operator[](const Parts<N>& path) {
     return Proxy<N, Policy>(self(), path);
+  }
+
+  template <AccessPolicy Policy = Optional>
+  Proxy<1, Policy> operator[](std::string_view name) {
+    return Proxy<1, Policy>(self(), Parts{name});
   }
 
  private:

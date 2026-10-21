@@ -11,7 +11,7 @@
 namespace sc::json {
 
 template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
-class JsonWriter : public JsonWriteMixin<JsonWriter<Json, E>, Json, E> {
+class JsonWriter : public JsonWriteMixin<JsonWriter<Json, E>, Json> {
  public:
   using Self = JsonWriter;
   using OwnerType = JsonOwnerStorage<Json>;

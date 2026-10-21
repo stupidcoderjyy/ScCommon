@@ -32,7 +32,7 @@ class JsonObjectView;
 
 template <typename Json, JsonErrorHandler E = DefaultJsonErrorHandler>
 class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
-                 public JsonAccessMixin<JsonView<Json, E>, Json, E> {
+                 public JsonAccessMixin<JsonView<Json, E>, Json> {
  public:
   using JsonT = Json;
   using ErrorHandlerT = E;
@@ -79,7 +79,7 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
 
  private:
   friend class JsonTraitsMixin<JsonView, Json>;
-  friend class JsonAccessMixin<JsonView, Json, E>;
+  friend class JsonAccessMixin<JsonView, Json>;
 
   [[nodiscard]] E& error_handler() const noexcept { return *handler_; }
 
