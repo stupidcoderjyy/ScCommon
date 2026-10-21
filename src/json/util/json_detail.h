@@ -105,7 +105,7 @@ template <typename Json, std::size_t N, typename ExistencePolicy,
 Json* ResolveWithPolicy(const Json* cur, const Parts<N>& path, E& handler,
                         JsonOwnerStorage<Json>* owner = nullptr) {
   constexpr auto required = std::is_same_v<ExistencePolicy, Required>;
-  constexpr auto create = required && kCreateOnMissing;
+  constexpr auto create = kCreateOnMissing;
   if (auto* res = detail::Resolve<Json, N, create>(cur, path, owner); res) {
     return res;
   }

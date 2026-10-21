@@ -130,6 +130,13 @@ JsonArrayView<Json, E> JsonView<Json, E>::ViewArray(
   return JsonArrayView<Json, E>(*node, error_handler());
 }
 
+template <typename Json, JsonErrorHandler E>
+template <AccessPolicy Policy>
+JsonArrayView<Json, E> JsonView<Json, E>::ViewArray(
+    std::string_view name) const {
+  return ViewArray<Policy>(Parts{name});
+}
+
 }  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_ARRAY_VIEW_H

@@ -89,6 +89,12 @@ struct JsonWriteTraits {
   static bool RemoveChild(JsonOwnerStorage<Json>& owner, Json& parent,
                           std::string_view name) noexcept;
 
+  static bool Copy(JsonOwnerStorage<Json>& owner, const Json& src,
+                   Json& dst) noexcept;
+
+  static bool Move(JsonOwnerStorage<Json>& owner, Json&& src,
+                   Json& dst) noexcept;
+
   static Json* AddInt(JsonOwnerStorage<Json>& owner, const Json& parent,
                       std::string_view name, int value) noexcept;
 

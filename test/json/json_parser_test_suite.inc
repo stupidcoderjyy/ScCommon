@@ -841,6 +841,106 @@ TEST(SC_JSON_TEST_SUITE_NAME, StringPathOverloads) {
   EXPECT_EQ(std::string("ok"), written.Get<std::string>("status"));
 }
 
+TEST(SC_JSON_TEST_SUITE_NAME, WriterSetOwnerAsValue) {
+  JsonOwner<SC_JSON_TYPE> base(std::string_view(R"({"a":{}})"));
+  JsonWriter<SC_JSON_TYPE> writer(base);
+
+  JsonOwner<SC_JSON_TYPE> child(std::string_view(R"({"v":2})"));
+  writer.Set("child", std::move(child));
+
+  JsonOwner<SC_JSON_TYPE> nested(std::string_view(R"({"w":3})"));
+  writer.Set<Required>("a.nested"_path, std::move(nested));
+
+  JsonOwner<SC_JSON_TYPE> via_subscript(std::string_view(R"({"z":4})"));
+  writer["sub"_path] = std::move(via_subscript);
+  EXPECT_FALSE(!via_subscript.valid());
+
+  JsonOwner<SC_JSON_TYPE> copy_source(std::string_view(R"({"v":5})"));
+  writer.Set("copied", copy_source);
+
+  JsonView view(base);
+  EXPECT_EQ(2, view.Get<int>("child.v"_path));
+  EXPECT_EQ(3, view.Get<int>("a.nested.w"_path));
+  EXPECT_EQ(4, view.Get<int>("sub.z"_path));
+  EXPECT_EQ(5, view.Get<int>("copied.v"_path));
+  EXPECT_EQ(5, JsonView(copy_source).Get<int>("v"));
+
+  JsonOwner<SC_JSON_TYPE> replacement(std::string_view(R"({"r":9})"));
+  writer.Set<Required>(""_path, std::move(replacement));
+  JsonView replaced(base);
+  EXPECT_EQ(9, replaced.Get<int>("r"_path));
+  EXPECT_FALSE(replaced.View("child").valid());
+
+  struct Payload {
+    int v = 6;
+    std::string s = "x";
+  };
+  JsonOwner<SC_JSON_TYPE> self_target(std::string_view(R"({"old":1})"));
+  JsonWriter<SC_JSON_TYPE> self_writer(self_target);
+  self_writer.Set<Required>(""_path, Payload{});
+  JsonView payload_view(self_target);
+  EXPECT_EQ(6, payload_view.Get<int>("v"));
+  EXPECT_EQ(std::string("x"), payload_view.Get<std::string>("s"));
+  EXPECT_FALSE(payload_view.View("old").valid());
+
+  std::map<std::string, int> map_value{{"k", 7}};
+  self_writer.Set<Required>(""_path, map_value);
+  JsonView map_view(self_target);
+  EXPECT_EQ(7, map_view.Get<int>("k"));
+  EXPECT_FALSE(map_view.View("v").valid());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, ViewStringOverloads) {
+  const SC_JSON_TYPE json = SC_JSON_MAKE_JSON();
+  JsonView view(json);
+
+  EXPECT_EQ(42, view.View("a").View("b").GetInt());
+  EXPECT_EQ(std::string("hello"), view.View("s").GetString());
+  EXPECT_EQ(3u, view.ViewArray("list").size());
+  EXPECT_EQ(2, (view.ViewArray("list").begin() + 1)->GetInt());
+  EXPECT_EQ(10, view.ViewObject("point").begin()->second.GetInt());
+  EXPECT_EQ(42, view.View<Required>("a").View<Required>("b").GetInt());
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, WriterCreatesNestedPathBySubscript) {
+  JsonOwner<SC_JSON_TYPE> owner;
+  JsonWriter<SC_JSON_TYPE> writer(owner);
+  writer["a.b"_path] = 1;
+  writer["a.c"_path] = 1.2;
+
+  std::ostringstream os;
+  owner.ToStream(os);
+  EXPECT_NE(std::string("{}"), os.str());
+
+  JsonView view(owner);
+  EXPECT_EQ(1, view.Get<int>("a.b"_path));
+  EXPECT_DOUBLE_EQ(1.2, view.Get<double>("a.c"_path));
+}
+
+TEST(SC_JSON_TEST_SUITE_NAME, GetStructWithDoubleVector) {
+  struct EvaluateParams {
+    std::vector<double> value;
+    int task = 0;
+  };
+
+  JsonOwner<SC_JSON_TYPE> owner(std::string_view(
+      R"({"value":[773.14999999999998,1,1,0,1500000,85000,0,0,0]})"));
+  JsonView view(owner);
+
+  const auto params = view.Get<EvaluateParams>(""_path);
+  ASSERT_EQ(9u, params.value.size());
+  EXPECT_DOUBLE_EQ(773.15, params.value[0]);
+  EXPECT_DOUBLE_EQ(1.0, params.value[1]);
+  EXPECT_DOUBLE_EQ(1500000.0, params.value[4]);
+  EXPECT_DOUBLE_EQ(85000.0, params.value[5]);
+  EXPECT_EQ(0, params.task);
+
+  EvaluateParams target;
+  view.Put(""_path, target);
+  ASSERT_EQ(9u, target.value.size());
+  EXPECT_DOUBLE_EQ(773.15, target.value[0]);
+}
+
 TEST(SC_JSON_TEST_SUITE_NAME, PutArrayElementMismatchReportsFullPath) {
   using ErrorHandler = SC_JSON_CONCAT(ErrorHandler_, SC_JSON_TEST_SUITE_NAME);
   ErrorHandler handler;
@@ -1641,19 +1741,24 @@ TEST(SC_JSON_TEST_SUITE_NAME, WriterAssignByPath) {
   EXPECT_EQ(5, TraitGet<int>(
                    *JsonTraits<SC_JSON_TYPE>::TryGetChild(*a, "x")));
 
-  // 默认策略是 Optional：缺失的中间节点不建链、非法路径不报错，整次赋值静默忽略
+  // [] 默认 Required：缺失的中间节点自动建链
   writer["new.deep"_path] = 9;
-  EXPECT_EQ(nullptr, child("new"));
-  writer[""_path] = 1;
-  writer["scalar.y"_path] = 1;
+  const SC_JSON_TYPE* created_new = child("new");
+  ASSERT_NE(nullptr, created_new);
+  EXPECT_EQ(9, TraitGet<int>(
+                   *JsonTraits<SC_JSON_TYPE>::TryGetChild(*created_new, "deep")));
+
+  // Set 默认 Optional：非法路径静默忽略
+  writer.Set<Optional>(""_path, 1);
+  writer.Set<Optional>("scalar.y"_path, 1);
   EXPECT_EQ(7, TraitGet<int>(*child("scalar")));
 
   // 显式 Required：空路径/父节点非对象上报错，缺失的中间节点自动建链
-  EXPECT_THROW((writer.Set<int, Required>(""_path, 1)), std::runtime_error);
-  EXPECT_THROW((writer.Set<int, Required>("scalar.y"_path, 1)),
+  EXPECT_THROW((writer.Set<Required>(""_path, 1)), std::runtime_error);
+  EXPECT_THROW((writer.Set<Required>("scalar.y"_path, 1)),
                std::runtime_error);
 
-  writer.Set<int, Required>("new.deep"_path, 9);
+  writer.Set<Required>("new.deep"_path, 9);
   const SC_JSON_TYPE* created = child("new");
   ASSERT_NE(nullptr, created);
   EXPECT_EQ(9, TraitGet<int>(
@@ -1710,7 +1815,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OwnerDefaultConstructedIsEmptyObject) {
   // 空白文档可以直接作为写入目标
   JsonWriter writer(owner);
   writer["i"_path] = 42;
-  writer.Set<int, Required>("a.b"_path, 7);
+  writer.Set<Required>("a.b"_path, 7);
   EXPECT_EQ(42, view.View<Required>("i"_path).GetInt());
   EXPECT_EQ(7, view.View<Required>("a.b"_path).GetInt());
 }
@@ -1737,7 +1842,7 @@ TEST(SC_JSON_TEST_SUITE_NAME, OwnerViewWriterUseIndependentErrorHandlers) {
   EXPECT_EQ(42, custom.View<Required>("a.b"_path).GetInt());
 
   JsonWriter<SC_JSON_TYPE, ErrorHandler> custom_writer(plain, handler);
-  custom_writer.Set<int, Required>(""_path, 1);
+  custom_writer.Set<Required>(""_path, 1);
   EXPECT_EQ(1u, ErrorHandler::resolve_errors.size());
 }
 

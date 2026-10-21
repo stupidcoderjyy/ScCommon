@@ -57,6 +57,18 @@ class JsonAccessMixin {
     Put<T, Policy>(Parts{name}, out, std::move(default_val));
   }
 
+  template <typename T, std::size_t N>
+  void PutF(const Parts<N>& path, T& out,
+            std::type_identity_t<T> default_val = {}) {
+    Put<T, Required>(path, out, std::move(default_val));
+  }
+
+  template <typename T>
+  void PutF(std::string_view name, T& out,
+            std::type_identity_t<T> default_val = {}) {
+    Put<T, Required>(name, out, std::move(default_val));
+  }
+
   template <typename T, AccessPolicy Policy = Optional, std::size_t N>
   [[nodiscard]] T Get(const Parts<N>& path, T default_val = {}) {
     T out{};
@@ -64,9 +76,19 @@ class JsonAccessMixin {
     return out;
   }
 
+  template <typename T, std::size_t N>
+  [[nodiscard]] T GetF(const Parts<N>& path, T default_val = {}) {
+    return Get<T, Required>(path, std::move(default_val));
+  }
+
   template <typename T, AccessPolicy Policy = Optional>
   [[nodiscard]] T Get(std::string_view name, T default_val = {}) {
     return Get<T, Policy>(Parts{name}, std::move(default_val));
+  }
+
+  template <typename T, std::size_t N>
+  [[nodiscard]] T GetF(std::string_view name, T default_val = {}) {
+    return Get<T, Required>(name, std::move(default_val));
   }
 
  private:

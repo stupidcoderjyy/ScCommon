@@ -92,6 +92,13 @@ JsonObjectView<Json, E> JsonView<Json, E>::ViewObject(
   return JsonObjectView<Json, E>(*node, error_handler());
 }
 
+template <typename Json, JsonErrorHandler E>
+template <AccessPolicy Policy>
+JsonObjectView<Json, E> JsonView<Json, E>::ViewObject(
+    std::string_view name) const {
+  return ViewObject<Policy>(Parts{name});
+}
+
 }  // namespace sc::json
 
 #endif  // SCCOMMON_JSON_OBJECT_VIEW_H

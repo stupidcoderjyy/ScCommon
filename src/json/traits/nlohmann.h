@@ -268,6 +268,25 @@ struct JsonWriteTraits<nlohmann::json> {
     }
   }
 
+  static bool Copy(JsonOwnerStorage<Json>&, const Json& src,
+                   Json& dst) noexcept {
+    try {
+      dst = src;
+      return true;
+    } catch (...) {
+      return false;
+    }
+  }
+
+  static bool Move(JsonOwnerStorage<Json>&, Json&& src, Json& dst) noexcept {
+    try {
+      dst = std::move(src);
+      return true;
+    } catch (...) {
+      return false;
+    }
+  }
+
   static Json* AddInt(JsonOwnerStorage<Json>&, const Json& parent,
                       std::string_view name, int value) noexcept {
     return SetAt(parent, name, value);

@@ -293,6 +293,21 @@ struct JsonWriteTraits<rapidjson::Value> {
     return true;
   }
 
+  static bool Copy(JsonOwnerStorage<Json>& owner, const Json& src,
+                   Json& dst) noexcept {
+    try {
+      dst.CopyFrom(src, owner.GetAllocator());
+      return true;
+    } catch (...) {
+      return false;
+    }
+  }
+
+  static bool Move(JsonOwnerStorage<Json>& owner, Json&& src,
+                   Json& dst) noexcept {
+    return Copy(owner, src, dst);
+  }
+
   static Json* AddInt(JsonOwnerStorage<Json>& owner, const Json& parent,
                       std::string_view name, int value) noexcept {
     return AddValue(owner, parent, name,

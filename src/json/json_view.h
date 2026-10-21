@@ -5,6 +5,8 @@
 #ifndef SCCOMMON_JSON_VIEW_H
 #define SCCOMMON_JSON_VIEW_H
 
+#include <string_view>
+
 #include "json_owner.h"
 #include "mixin/json_access_mixin.h"
 #include "mixin/json_traits_mixin.h"
@@ -66,11 +68,22 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
     return node ? JsonView{*node, error_handler()} : JsonView{};
   }
 
+  template <AccessPolicy Policy = Optional>
+  JsonView View(std::string_view name) const {
+    return View<Policy>(Parts{name});
+  }
+
   template <AccessPolicy Policy = Optional, std::size_t N>
   JsonArrayView<Json, E> ViewArray(const Parts<N>& path) const;
 
+  template <AccessPolicy Policy = Optional>
+  JsonArrayView<Json, E> ViewArray(std::string_view name) const;
+
   template <AccessPolicy Policy = Optional, std::size_t N>
   JsonObjectView<Json, E> ViewObject(const Parts<N>& path) const;
+
+  template <AccessPolicy Policy = Optional>
+  JsonObjectView<Json, E> ViewObject(std::string_view name) const;
 
   [[nodiscard]] bool valid() const noexcept { return json_; }
   [[nodiscard]] const Json* node() const noexcept { return json_; }

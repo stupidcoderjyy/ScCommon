@@ -204,6 +204,26 @@ struct JsonWriteTraits<Json::Value> {
     }
   }
 
+  static bool Copy(JsonOwnerStorage<::Json::Value>&, const ::Json::Value& src,
+                   ::Json::Value& dst) noexcept {
+    try {
+      dst = src;
+      return true;
+    } catch (...) {
+      return false;
+    }
+  }
+
+  static bool Move(JsonOwnerStorage<::Json::Value>&, ::Json::Value&& src,
+                   ::Json::Value& dst) noexcept {
+    try {
+      dst = std::move(src);
+      return true;
+    } catch (...) {
+      return false;
+    }
+  }
+
   static ::Json::Value* AddInt(JsonOwnerStorage<::Json::Value>&,
                                const ::Json::Value& parent,
                                std::string_view name, int value) noexcept {
