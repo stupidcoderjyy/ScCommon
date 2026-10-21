@@ -147,7 +147,7 @@ struct JsonAccessTraits<nlohmann::json> {
     return false;
   }
   static bool GetDouble(const Json& json, double& out) {
-    if (!json.is_number_float()) {
+    if (!json.is_number()) {
       return false;
     }
     out = json.get<double>();

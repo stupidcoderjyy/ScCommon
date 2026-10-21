@@ -9,3 +9,9 @@ set(BENCHMARK_ENABLE_DOXYGEN OFF CACHE BOOL "Disable benchmark docs" FORCE)
 set(BENCHMARK_INSTALL_DOCS OFF CACHE BOOL "Disable benchmark docs install" FORCE)
 set(BENCHMARK_INSTALL_TOOLS OFF CACHE BOOL "Disable benchmark tools install" FORCE)
 add_subdirectory(benchmark)
+
+# jsoncpp
+set(JSONCPP_WITH_TESTS OFF CACHE BOOL "Disable jsoncpp tests" FORCE)
+set(JSONCPP_WITH_POST_BUILD_UNITTEST OFF CACHE BOOL "Disable jsoncpp post-build tests" FORCE)
+set(JSONCPP_WITH_EXAMPLE OFF CACHE BOOL "Disable jsoncpp examples" FORCE)
+add_subdirectory(jsoncpp)

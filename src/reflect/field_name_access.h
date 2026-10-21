@@ -24,7 +24,7 @@ struct FakeObjectWrapper {
 };
 
 template <typename T>
-extern const FakeObjectWrapper<T> kFakeObject;
+inline const FakeObjectWrapper<T> kFakeObject{{}};
 
 template <typename T>
 constexpr const T& FakeObject() noexcept {
@@ -72,7 +72,8 @@ consteval std::string_view ParseFieldName(std::string_view signature) noexcept {
     }
     const bool after_dot = i >= 1 && tail[i - 1] == '.';
     const bool after_scope = i >= 2 && tail.compare(i - 2, 2, "::") == 0;
-    if (after_dot || after_scope) {
+    const bool after_arrow = i >= 2 && tail[i - 2] == '-' && tail[i - 1] == '>';
+    if (after_dot || after_scope || after_arrow) {
       begin = i;
       end = run_end;
     }

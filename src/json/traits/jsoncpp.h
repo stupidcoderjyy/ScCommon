@@ -69,7 +69,7 @@ struct JsonAccessTraits<Json::Value> {
     return true;
   }
   static bool GetDouble(const Json& json, double& out) {
-    if (!json.isDouble()) {
+    if (!json.isNumeric()) {
       return false;
     }
     out = json.asDouble();

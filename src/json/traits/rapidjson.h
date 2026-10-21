@@ -172,7 +172,7 @@ struct JsonAccessTraits<rapidjson::Value> {
     return false;
   }
   static bool GetDouble(const Json& json, double& out) {
-    if (!json.IsDouble()) {
+    if (!json.IsNumber()) {
       return false;
     }
     out = json.GetDouble();
