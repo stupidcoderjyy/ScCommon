@@ -38,10 +38,9 @@ constexpr std::size_t CountFieldsImpl() {
                   IsBracesConstructible<T,
                                         std::make_index_sequence<mid>>::value) {
       if constexpr (mid == kMaxFields) {
-        static_assert(
-            !IsBracesConstructible<
-                T, std::make_index_sequence<kMaxFields + 1>>::value,
-            "reflect: too many fields");
+        static_assert(!IsBracesConstructible<
+                          T, std::make_index_sequence<kMaxFields + 1>>::value,
+                      "reflect: too many fields");
         return kMaxFields;
       } else {
         return CountFieldsImpl<T, mid, Hi>();

@@ -84,7 +84,9 @@ consteval std::size_t FindFieldIndex(std::index_sequence<I...>) {
   if (i != sizeof...(I)) {
     return i;
   }
-  return detail::AliasFieldIndex<S, T>(std::index_sequence<I...>{});
+  constexpr auto alias = detail::AliasFieldName<S, T>();
+  ((std::get<I>(fields).name == alias ? (i = I, true) : false), ...);
+  return i;
 }
 
 template <common::FixedString S, typename T>
