@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "../json_traits.h"
@@ -101,6 +102,15 @@ struct Extractor {
   }
 };
 
+template <typename T>
+constexpr bool is_string_literal_v =
+    std::is_same_v<std::remove_cvref_t<T>, std::string_view> ||
+    (std::is_pointer_v<std::decay_t<T>> &&
+     std::is_same_v<std::remove_cv_t<std::remove_pointer_t<std::decay_t<T>>>,
+                    char>) ||
+    (std::is_array_v<T> &&
+     std::is_same_v<std::remove_cv_t<std::remove_extent_t<T>>, char>);
+
 template <typename Json, typename T>
 struct Injector {
   static bool Inject(JsonOwnerStorage<Json>& owner, const Json& parent,
@@ -117,6 +127,9 @@ struct Injector {
       return JsonTraits<Json>::AddDouble(owner, parent, name, val);
     } else if constexpr (std::is_same_v<T, std::string>) {
       return JsonTraits<Json>::AddString(owner, parent, name, val);
+    } else if constexpr (is_string_literal_v<T>) {
+      return JsonTraits<Json>::AddString(owner, parent, name,
+                                         std::string_view(val));
     } else if constexpr (std::is_same_v<T, bool>) {
       return JsonTraits<Json>::AddBool(owner, parent, name, val);
     } else if constexpr (std::is_same_v<T, std::nullptr_t>) {

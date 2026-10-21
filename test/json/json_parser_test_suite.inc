@@ -834,9 +834,11 @@ TEST(SC_JSON_TEST_SUITE_NAME, StringPathOverloads) {
   JsonWriter<SC_JSON_TYPE> writer(owner);
   writer["n"] = 5;
   writer.Set("m", 7);
+  writer["status"] = "ok";
   JsonView written(owner);
   EXPECT_EQ(5, written.Get<int>("n"));
   EXPECT_EQ(7, written.Get<int>("m"));
+  EXPECT_EQ(std::string("ok"), written.Get<std::string>("status"));
 }
 
 TEST(SC_JSON_TEST_SUITE_NAME, PutArrayElementMismatchReportsFullPath) {

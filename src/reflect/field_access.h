@@ -31,7 +31,8 @@ struct FieldInfo {
 namespace detail {
 
 template <typename T, bool = std::is_aggregate_v<T> &&
-                             !std::is_reference_v<T> && !std::is_union_v<T>>
+                             !std::is_reference_v<T> &&
+                             !std::is_union_v<T> && !std::is_array_v<T>>
 struct IsReflectable : std::false_type {};
 
 template <typename T>

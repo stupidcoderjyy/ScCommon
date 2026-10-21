@@ -5,11 +5,11 @@
 #ifndef SCCOMMON_JSON_VIEW_H
 #define SCCOMMON_JSON_VIEW_H
 
+#include "json_owner.h"
 #include "mixin/json_access_mixin.h"
 #include "mixin/json_traits_mixin.h"
 #include "util/json_detail.h"
 #include "util/json_error.h"
-#include "json_owner.h"
 
 #if defined(NLOHMANN_JSON_HPP) || defined(INCLUDE_NLOHMANN_JSON_HPP_) || \
     __has_include(<nlohmann/json.hpp>)

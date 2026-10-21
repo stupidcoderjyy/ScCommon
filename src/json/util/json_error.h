@@ -39,7 +39,7 @@ inline constexpr int kPathResolveError = -2000;
 inline constexpr int kTypeMismatch = -2001;
 inline constexpr int kJsonParseError = -2002;
 
-}
+}  // namespace ec
 
 struct ErrorCodeJsonErrorHandler {
   void OnPathResolveError(std::string_view) {
