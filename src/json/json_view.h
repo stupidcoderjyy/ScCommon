@@ -63,7 +63,7 @@ class JsonView : public JsonTraitsMixin<JsonView<Json, E>, Json>,
     if (!valid()) {
       return JsonView{};
     }
-    const Json* node = detail::ResolveWithPolicy<Json, N, Policy>(
+    const Json* node = detail::ResolveFixedWithPolicy<Json, N, Policy>(
         json_, path, error_handler());
     return node ? JsonView{*node, error_handler()} : JsonView{};
   }

@@ -116,7 +116,7 @@ class JsonAccessMixin {
         }
       }
     } else {
-      target = detail::ResolveWithPolicy<Json, N, Policy>(
+      target = detail::ResolveFixedWithPolicy<Json, N, Policy>(
           base, path, self().error_handler());
     }
     if (target == nullptr) {

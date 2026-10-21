@@ -114,7 +114,8 @@ class JsonWriteMixin {
       return &owner->json();
     } else {
       using Handler = std::remove_reference_t<decltype(self().error_handler())>;
-      return detail::ResolveWithPolicy<Json, N - 1, Policy, Handler, kCreate>(
+      return detail::ResolveFixedWithPolicy<Json, N - 1, Policy, Handler,
+                                            kCreate>(
           &owner->json(), path.template Sub<0, N - 1>(), self().error_handler(),
           owner);
     }

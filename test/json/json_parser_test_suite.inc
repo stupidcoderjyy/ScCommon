@@ -1616,8 +1616,8 @@ TEST(SC_JSON_TEST_SUITE_NAME, AutoChainOnWrite) {
   const SC_JSON_TYPE& root = owner.json();
 
   auto resolve = [&]<typename T0>(const T0& path) {
-    return detail::ResolveWithPolicy<SC_JSON_TYPE, std::decay_t<T0>::kSize, Required,
-                                     ErrorHandler, true>(
+    return detail::ResolveFixedWithPolicy<
+        SC_JSON_TYPE, std::decay_t<T0>::kSize, Required, ErrorHandler, true>(
         &root, path, handler, &owner);
   };
 

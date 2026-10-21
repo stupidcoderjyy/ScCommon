@@ -79,7 +79,8 @@ JsonObjectView<Json, E> JsonView<Json, E>::ViewObject(
     return JsonObjectView<Json, E>{};
   }
   const Json* node =
-      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, error_handler());
+      detail::ResolveFixedWithPolicy<Json, N, Policy>(json_, path,
+                                                      error_handler());
   if (!node) {
     return JsonObjectView<Json, E>{};
   }

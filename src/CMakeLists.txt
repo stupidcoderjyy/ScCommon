@@ -16,6 +16,11 @@ else ()
     )
 endif ()
 
+target_compile_definitions(${TARGET} INTERFACE
+    NDEBUG
+    $<$<CONFIG:Release>:NDEBUG>
+)
+
 add_subdirectory(json)
 add_subdirectory(reflect)
 add_subdirectory(common)

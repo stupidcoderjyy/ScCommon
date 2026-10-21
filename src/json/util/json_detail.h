@@ -89,25 +89,20 @@ const Json* Step(const Json* node, std::string_view token,
   return &JsonTraits<Json>::GetArrayElement(*node, index);
 }
 
-template <typename Json, std::size_t N, bool kCreateOnMissing = false>
-Json* Resolve(const Json* cur, const Parts<N>& path,
-              JsonOwnerStorage<Json>* owner = nullptr) {
-  Json* node = const_cast<Json*>(cur);
-  for (std::size_t i = 0; node != nullptr && i < path.Size(); ++i) {
-    node =
-        const_cast<Json*>(Step<Json, kCreateOnMissing>(node, path[i], owner));
-  }
-  return node;
-}
-
 template <typename Json, std::size_t N, typename ExistencePolicy,
           JsonErrorHandler E, bool kCreateOnMissing = false>
-Json* ResolveWithPolicy(const Json* cur, const Parts<N>& path, E& handler,
-                        JsonOwnerStorage<Json>* owner = nullptr) {
+Json* ResolveFixedWithPolicy(const Json* cur, const Parts<N>& path, E& handler,
+                             JsonOwnerStorage<Json>* owner = nullptr) {
   constexpr auto required = std::is_same_v<ExistencePolicy, Required>;
   constexpr auto create = kCreateOnMissing;
-  if (auto* res = detail::Resolve<Json, N, create>(cur, path, owner); res) {
-    return res;
+  Json* node = const_cast<Json*>(cur);
+  [&]<std::size_t... I>(std::index_sequence<I...>) {
+    ((node = const_cast<Json*>(
+          Step<Json, create>(node, path[I], owner))),
+     ...);
+  }(std::make_index_sequence<N>{});
+  if (node) {
+    return node;
   }
   if constexpr (required) {
     handler.OnPathResolveError(PathString(path));

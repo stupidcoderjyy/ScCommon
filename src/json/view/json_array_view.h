@@ -117,7 +117,8 @@ JsonArrayView<Json, E> JsonView<Json, E>::ViewArray(
     return {};
   }
   const Json* node =
-      detail::ResolveWithPolicy<Json, N, Policy>(json_, path, error_handler());
+      detail::ResolveFixedWithPolicy<Json, N, Policy>(json_, path,
+                                                      error_handler());
   if (!node) {
     return {};
   }
